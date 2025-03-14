@@ -99,7 +99,7 @@ const updateVehicleDetails = async () => {
   }
 };
 
-setInterval(updateVehicleDetails, 10 * 1000);
+// setInterval(updateVehicleDetails, 10 * 1000);
 
 module.exports.registerVehiclesFromExcel = async (req, res) => {
   try {
@@ -307,7 +307,7 @@ const addVehiclePath = async () => {
     console.log("Error : ", error);
   }
 };
-setInterval(addVehiclePath, 60 * 100);
+// setInterval(addVehiclePath, 60 * 100);
 
 module.exports.getVehiclesPath = async (req, res) => {
   const { vehicleNo, fromDate } = req.query;
