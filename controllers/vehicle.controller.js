@@ -263,9 +263,7 @@ const addVehiclePath = async () => {
           { headers: { Authorization: `bearer ${process.env.FLEETX_TOKEN}` } }
         );
 
-        const { vehicleNumber, latitude, longitude, speed, address } =
-          vehiclePos.data;
-        // console.log({ vehicleNumber, latitude, longitude, speed, address })
+        const { vehicleNumber, latitude, longitude, speed } = vehiclePos.data;
 
         const existingVehiclePath = await VehiclePathModel.findOne({
           vehicleNo: e.vehicleNo,
@@ -276,24 +274,33 @@ const addVehiclePath = async () => {
             latitude: latitude,
             longitude: longitude,
             speed: speed,
-            address: address,
           });
           await newData.save();
-          // console.log("ye data :",newData)
         }
 
-        if (parseFloat(speed) > 0) {
+        // if (parseFloat(speed) > 0) {
+        //   const newData = new VehiclePathModel({
+        //     vehicleNo: vehicleNumber,
+        //     latitude: latitude,
+        //     longitude: longitude,
+        //     speed: speed,
+        //   });
+        //   await newData.save();
+        // } else {
+        //   // console.log("Skipping entry because speed is 0:", speed);
+        // }
+
+        if (speed !== "0") {
+          // console.log("Ye bala +++++++++++++++++++++++++++++++")
           const newData = new VehiclePathModel({
             vehicleNo: vehicleNumber,
             latitude: latitude,
             longitude: longitude,
             speed: speed,
-            address: address,
           });
           await newData.save();
-          // console.log("abye data :",newData)
-        } else {
-          // console.log("Skipping entry because speed is 0:", speed);
+        }else{
+          console.log(speed)
         }
       } catch (error) {
         if (error?.response?.status === 404) {
