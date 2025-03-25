@@ -263,7 +263,8 @@ const addVehiclePath = async () => {
           { headers: { Authorization: `bearer ${process.env.FLEETX_TOKEN}` } }
         );
 
-        const { vehicleNumber, latitude, longitude, speed } = vehiclePos.data;
+        // console.log(vehiclePos.data)
+        const { vehicleNumber, latitude, longitude, speed, address } = vehiclePos.data;
 
         const existingVehiclePath = await VehiclePathModel.findOne({
           vehicleNo: e.vehicleNo,
@@ -274,6 +275,7 @@ const addVehiclePath = async () => {
             latitude: latitude,
             longitude: longitude,
             speed: speed,
+            address: address || "N/A",
           });
           await newData.save();
         }
@@ -284,6 +286,7 @@ const addVehiclePath = async () => {
         //     latitude: latitude,
         //     longitude: longitude,
         //     speed: speed,
+        //     address: address || "N/A",
         //   });
         //   await newData.save();
         // } else {
@@ -297,6 +300,7 @@ const addVehiclePath = async () => {
             latitude: latitude,
             longitude: longitude,
             speed: speed,
+            address: address || "N/A",
           });
           await newData.save();
         }else{
@@ -318,6 +322,9 @@ setInterval(addVehiclePath, 60 * 100);
 
 module.exports.getVehiclesPath = async (req, res) => {
   const { vehicleNo, fromDate } = req.query;
+  if(!vehicleNo){
+    return res.status(400).json({message:"vehicle no is required"})
+  }
 
   try {
     const twentyFourHoursAgo = new Date();
@@ -338,6 +345,8 @@ module.exports.getVehiclesPath = async (req, res) => {
     const latlongArray = vehiclePath.map((position) => ({
       lat: parseFloat(position.latitude),
       lng: parseFloat(position.longitude),
+      speed: parseFloat(position.speed),
+      address: position.address,
       time: position.createdAt,
     }));
 
@@ -383,6 +392,8 @@ module.exports.filterVehiclePath = async (req, res) => {
     const latlongArray = response.map((position) => ({
       lat: parseFloat(position.latitude),
       lng: parseFloat(position.longitude),
+      speed: parseFloat(position.speed),
+      address: position.address,
       time: position.createdAt,
     }));
 
