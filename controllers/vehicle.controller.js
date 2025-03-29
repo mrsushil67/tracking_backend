@@ -345,9 +345,9 @@ module.exports.getVehiclesPath = async (req, res) => {
     const latlongArray = vehiclePath.map((position) => ({
       lat: parseFloat(position.latitude),
       lng: parseFloat(position.longitude),
-      speed: parseFloat(position.speed),
-      address: position.address,
-      time: position.createdAt,
+      // speed: parseFloat(position.speed),
+      // address: position.address,
+      // time: position.createdAt,
     }));
 
     return res.status(200).json(latlongArray);
@@ -392,9 +392,9 @@ module.exports.filterVehiclePath = async (req, res) => {
     const latlongArray = response.map((position) => ({
       lat: parseFloat(position.latitude),
       lng: parseFloat(position.longitude),
-      speed: parseFloat(position.speed),
-      address: position.address,
-      time: position.createdAt,
+      // speed: parseFloat(position.speed),
+      // address: position.address,
+      // time: position.createdAt,
     }));
 
     return res.status(200).json(latlongArray);
