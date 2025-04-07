@@ -347,7 +347,7 @@ module.exports.getVehiclesPath = async (req, res) => {
       lng: parseFloat(position.longitude),
       // speed: parseFloat(position.speed),
       // address: position.address,
-      // time: position.createdAt,
+      time: position.createdAt,
     }));
 
     return res.status(200).json(latlongArray);
@@ -394,7 +394,7 @@ module.exports.filterVehiclePath = async (req, res) => {
       lng: parseFloat(position.longitude),
       // speed: parseFloat(position.speed),
       // address: position.address,
-      // time: position.createdAt,
+      time: position.createdAt,
     }));
 
     return res.status(200).json(latlongArray);
