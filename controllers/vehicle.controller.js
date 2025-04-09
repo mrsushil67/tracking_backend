@@ -141,6 +141,8 @@ module.exports.registerVehiclesFromExcel = async (req, res) => {
       .filter((vehicleNo) => !existingVehicleNumbers.has(vehicleNo))
       .map((vehicleNo) => ({ vehicleNo }));
 
+
+    const token = getToken()
     // Insert new vehicles if any
     if (newVehicles.length > 0) {
       const requests = newVehicles.map(async (e) => {
@@ -148,7 +150,7 @@ module.exports.registerVehiclesFromExcel = async (req, res) => {
           const response = await axios.get(
             `https://api.fleetx.io/api/v1/analytics/live/byNumber/${e.vehicleNo}`,
             {
-              headers: { Authorization: `Bearer ${process.env.FLEETX_TOKEN}` },
+              headers: { Authorization: `Bearer ${token}` },
             }
           );
 
@@ -257,11 +259,13 @@ const addVehiclePath = async () => {
   try {
     const fleetsVehicles = await AllVehiclesModel.find({});
 
+    const token = await getToken()
+
     fleetsVehicles.forEach(async (e) => {
       try {
         const vehiclePos = await axios.get(
           `https://api.fleetx.io/api/v1/analytics/live/byNumber/${e.vehicleNo}`,
-          { headers: { Authorization: `bearer ${process.env.FLEETX_TOKEN}` } }
+          { headers: { Authorization: `bearer ${token}` } }
         );
 
         // console.log(vehiclePos.data)
@@ -415,7 +419,7 @@ module.exports.filterVehicleByNumber = async (req, res) => {
       return res.status(404).json({ message: "Vehicle number does not exist" });
     }
 
-    const token = process.env.FLEETX_TOKEN;
+    const token = await getToken();
     const response = await axios.get(
       `https://api.fleetx.io/api/v1/analytics/live/byNumber/${vehicleNo}`,
       {
@@ -478,3 +482,5 @@ async function getRoadDistance(lat1, lon1, lat2, lon2) {
   }
 }
 // getRoadDistance(28.10042, 77.33588166666668, 19.076090, 72.877426);
+
+
