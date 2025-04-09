@@ -47,18 +47,19 @@ module.exports.getVehicles = async (req, res) => {
 
 const updateVehicleDetails = async () => {
   try {
-    const vehicles = await AllVehiclesModel.find({}, "vehicleNo"); // Fetch all vehicle numbers
+    const vehicles = await AllVehiclesModel.find({}, "vehicleNo"); // Fetch all vehicle numbers\
+    const token = await getToken()
+    // console.log("Token : ",token)
 
     const updateRequests = vehicles.map(async (e) => {
       try {
         const response = await axios.get(
           `https://api.fleetx.io/api/v1/analytics/live/byNumber/${e.vehicleNo}`,
           {
-            headers: { Authorization: `Bearer ${process.env.FLEETX_TOKEN}` },
+            headers: { Authorization: `Bearer ${token}` },
           }
         );
-
-        // console.log(response.data)
+        
         if (response && response.data) {
           const data = response.data;
 

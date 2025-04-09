@@ -36,5 +36,6 @@ const getToken = async () => {
         throw error;
     }
 }
+// getToken()
 
 module.exports = {getToken}
