@@ -323,7 +323,7 @@ const addVehiclePath = async () => {
     console.log("Error : ", error);
   }
 };
-setInterval(addVehiclePath, 60 * 100);
+setInterval(addVehiclePath, 10 * 1000);
 
 module.exports.getVehiclesPath = async (req, res) => {
   const { vehicleNo, fromDate } = req.query;
