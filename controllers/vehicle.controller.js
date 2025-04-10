@@ -333,10 +333,13 @@ module.exports.getVehiclesPath = async (req, res) => {
 
   console.log(req.query)
   try {
-    const twentyFourHoursAgo = new Date();
-    twentyFourHoursAgo.setTime(
-      twentyFourHoursAgo.getTime() - 24 * 60 * 60 * 1000
-    );
+    const time24 = moment().subtract(24,"h")
+    const twentyFourHoursAgo = new Date(time24);
+    console.log("time24",new Date(time24));
+    
+    // twentyFourHoursAgo.setTime(
+    //   twentyFourHoursAgo.getTime() - 24 * 60 * 60 * 1000
+    // );
     console.log(twentyFourHoursAgo)
     const vehicle = await AllVehiclesModel.findOne({ vehicleNo: vehicleNo });
 
