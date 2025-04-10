@@ -331,7 +331,7 @@ module.exports.getVehiclesPath = async (req, res) => {
     return res.status(400).json({message:"vehicle no is required"})
   }
 
-  console.log(req.query)
+  console.log("Query2 : ",req.query)
   try {
     const time24 = moment().subtract(24,"h")
     const twentyFourHoursAgo = new Date(time24);
@@ -340,7 +340,7 @@ module.exports.getVehiclesPath = async (req, res) => {
     // twentyFourHoursAgo.setTime(
     //   twentyFourHoursAgo.getTime() - 24 * 60 * 60 * 1000
     // );
-    console.log(twentyFourHoursAgo)
+    // console.log(twentyFourHoursAgo)
     const vehicle = await AllVehiclesModel.findOne({ vehicleNo: vehicleNo });
 
     if (!vehicle) {
