@@ -48,6 +48,7 @@ app.get("/stream-path", async (req, res) => {
         const latlongArray = chunk.map((position) => ({
           lat: parseFloat(position.latitude),
           lng: parseFloat(position.longitude),
+          speed: parseFloat(position.speed),
           time: position.createdAt,
         }));
 
