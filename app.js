@@ -49,6 +49,7 @@ app.get("/stream-path", async (req, res) => {
           lat: parseFloat(position.latitude),
           lng: parseFloat(position.longitude),
           speed: parseFloat(position.speed),
+          address: position.address,
           time: position.createdAt,
         }));
 
