@@ -24,25 +24,19 @@ app.get("/stream-path", async (req, res) => {
     Connection: "keep-alive",
   });
   res.flushHeaders();
-
   // Abort any previous stream for this vehicle
   if (activeStreams.has(vehicleNo)) {
     const prev = activeStreams.get(vehicleNo);
     prev.abortController.abort();
     activeStreams.delete(vehicleNo);
   }
-
   const abortController = new AbortController();
   activeStreams.set(vehicleNo, { abortController });
-
   try {
     const cursor = VehiclePathModel.find({ vehicleNo, createdAt: {$gte : new Date(startDate),$lte : new Date(endDate)}}).cursor();
     const totalData = await VehiclePathModel.countDocuments({ vehicleNo,  createdAt: {$gte : new Date(startDate), $lte : new Date(endDate)}});
-
     res.write(`event: total-path\ndata: ${JSON.stringify({ totalData })}\n\n`);
-
     let chunk = [];
-
     const sendChunk = () => {
       if (chunk.length > 0) {
         const latlongArray = chunk.map((position) => ({
@@ -52,20 +46,16 @@ app.get("/stream-path", async (req, res) => {
           address: position.address,
           time: position.createdAt,
         }));
-
         res.write(`event: vehicle-path\ndata: ${JSON.stringify(latlongArray)}\n\n`);
         chunk = [];
       }
     };
-
     for await (const doc of cursor) {
       if (abortController.signal.aborted) {
         console.log("SSE stream aborted for", vehicleNo);
         break;
       }
-
       chunk.push(doc);
-
       if (chunk.length >= chunkSize) {
         sendChunk();
         await new Promise((resolve) => setTimeout(resolve, interval));
@@ -75,7 +65,6 @@ app.get("/stream-path", async (req, res) => {
     sendChunk();
     res.write(`event: No-more\ndata: no more data\n\n`);
     res.end();
-
     activeStreams.delete(vehicleNo);
   } catch (err) {
     console.error("SSE stream error:", err);
