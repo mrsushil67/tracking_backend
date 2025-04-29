@@ -5,6 +5,7 @@ const { getToken } = require("../middlewares/authMiddleware");
 const VehiclePathModel = require("../models/vehiclePath.model");
 const AllVehiclesModel = require("../models/vehicles.model");
 const moment = require("moment");
+const {sendNotification} = require("../services/notify.service");
 require("dotenv").config();
 
 module.exports.createVehicles = async (req, res) => {
@@ -93,7 +94,8 @@ const updateVehicleDetails = async () => {
       }
     });
 
-    await Promise.all(updateRequests); // Wait for all updates to finish
+    await Promise.all(updateRequests);
+    sendNotification();
     console.log("All vehicle details updated successfully.");
   } catch (error) {
     console.error("Error updating vehicle details:", error.message);
