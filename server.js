@@ -19,12 +19,12 @@ const io = new Server(server, {
 global.io = io
 
 io.on("connection", async (socket) => {
-  console.log("Socket connected:", socket.id);
+  // console.log("Socket connected:", socket.id);
   
   global.socket = socket;
 
   socket.on("disconnect", () => {
-    console.log("Socket disconnected:", socket.id);
+    // console.log("Socket disconnected:", socket.id);
   });
 });
 
