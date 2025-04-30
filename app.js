@@ -2,6 +2,7 @@ const express = require('express')
 const app = express()
 const cors = require('cors')
 const VehicleRoutes = require('./routes/vehicle.route');
+const NotificationRoutes = require('./routes/notification.route');
 const VehiclePathModel = require('./models/vehiclePath.model');
 
 app.use(express.json())
@@ -10,6 +11,7 @@ app.use(cors())
 app.get('/', (req, res) => res.send('Hello World!'));
 
 app.use('/api/v1/vehicle',VehicleRoutes)
+app.use('/api/v1/notification',NotificationRoutes)
 
 const activeStreams = new Map(); // key: vehicleNo or clientId, value: abortController
 
