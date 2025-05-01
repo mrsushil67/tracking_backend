@@ -8,6 +8,8 @@ const { io } = require("../server");
 const sendNotification = async (req, res) => {
   if (global.socket) {
     global.socket.emit("message", "Hello from server");
+    console.log("Socket connected");
+
   } else {
     console.log("Socket not connected");
   }
@@ -47,13 +49,13 @@ const sendNotification = async (req, res) => {
       const rawData = await VehiclePathModel.find({
         vehicleNo: vehicle.vehicleNo,
         createdAt: { $gte: oneMinute },
-      }).limit(5);
+      }).limit(2);
 
       // vehicle run 60+ spped with in 1 minutes
       const overSpeedRunningVehicle = rawData.filter(
-        (item) => parseFloat(item.speed) > 60
+        (item) => parseFloat(item.speed) > 62
       );
-     
+
       const lastOverSpeedNotification = await NotificationModel.findOne({
         vehicleNo: vehicle.vehicleNo,
         notificationType: notificationType2,
@@ -83,22 +85,24 @@ const sendNotification = async (req, res) => {
       }
       const isSpeedZero = vehiclePaths.every((path) => path.speed === "0");
       if (isSpeedZero === true) {
-        const notification = new NotificationModel({
-          vehicleNo: vehicle.vehicleNo,
-          notificationType: notificationType1,
-          notificationMessage: `Vehicle ${vehicle.vehicleNo} has been stopped since last 10 minutes.`,
-          isRead: false,
-          notificationDateTime: new Date(),
-        });
+        if (!existingNotification) {
+          const notification = new NotificationModel({
+            vehicleNo: vehicle.vehicleNo,
+            notificationType: notificationType1,
+            notificationMessage: `Vehicle ${vehicle.vehicleNo} has been stopped since last 10 minutes.`,
+            isRead: false,
+            notificationDateTime: new Date(),
+          });
 
-        await notification.save();
-        global.socket.emit("notification", {
-          vehicleNo: vehicle.vehicleNo,
-          notificationType: notificationType1,
-          notificationMessage: `Vehicle ${vehicle.vehicleNo} has been stopped since last 10 minutes.`,
-          isRead: false,
-          notificationDateTime: new Date(),
-        });
+          await notification.save();
+          global.socket.emit("notification", {
+            vehicleNo: vehicle.vehicleNo,
+            notificationType: notificationType1,
+            notificationMessage: `Vehicle ${vehicle.vehicleNo} has been stopped since last 10 minutes.`,
+            isRead: false,
+            notificationDateTime: new Date(),
+          });
+        }
       }
     }
   } catch (error) {
