@@ -21,8 +21,8 @@ const sendNotification = async (req, res) => {
     if (!vehicles || vehicles.length === 0) {
       return res.status(404).json({ message: "No vehicles found" });
     }
-    const tenMinAgo = moment().subtract(10, "minutes");
-    const tenMinutesAgo = new Date(tenMinAgo);
+    const fifteenMinAgo = moment().subtract(15, "minutes");
+    const fifteenMinutesAgo = new Date(fifteenMinAgo);
 
     const fiveMinAgo = moment().subtract(5, "minutes");
     const fiveMinutesAgo = new Date(fiveMinAgo);
@@ -34,7 +34,7 @@ const sendNotification = async (req, res) => {
       const existingNotification = await NotificationModel.findOne({
         vehicleNo: vehicle.vehicleNo,
         notificationType: notificationType1,
-        createdAt: { $gte: tenMinutesAgo },
+        createdAt: { $gte: fifteenMinutesAgo },
       });
 
       if (existingNotification) {
@@ -43,7 +43,7 @@ const sendNotification = async (req, res) => {
 
       const vehiclePaths = await VehiclePathModel.find({
         vehicleNo: vehicle.vehicleNo,
-        createdAt: { $gte: tenMinutesAgo },
+        createdAt: { $gte: fifteenMinutesAgo },
       });
 
       const rawData = await VehiclePathModel.find({
@@ -89,7 +89,7 @@ const sendNotification = async (req, res) => {
           const notification = new NotificationModel({
             vehicleNo: vehicle.vehicleNo,
             notificationType: notificationType1,
-            notificationMessage: `Vehicle ${vehicle.vehicleNo} has been stopped since last 10 minutes.`,
+            notificationMessage: `Vehicle ${vehicle.vehicleNo} has been stopped since last 15 minutes.`,
             isRead: false,
             notificationDateTime: new Date(),
           });
@@ -98,7 +98,7 @@ const sendNotification = async (req, res) => {
           global.socket.emit("notification", {
             vehicleNo: vehicle.vehicleNo,
             notificationType: notificationType1,
-            notificationMessage: `Vehicle ${vehicle.vehicleNo} has been stopped since last 10 minutes.`,
+            notificationMessage: `Vehicle ${vehicle.vehicleNo} has been stopped since last 15 minutes.`,
             isRead: false,
             notificationDateTime: new Date(),
           });
