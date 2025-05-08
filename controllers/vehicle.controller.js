@@ -456,6 +456,104 @@ module.exports.totalRunningVehicles = async (req, res) => {
   }
 };
 
+module.exports.getRootDataByTripDetails = async (req, res) => {
+  try {
+    const { vehicleNo, source, destination, jobDept_Date, jobArr_Date } = req.body;
+    console.log("tripDetails : ", vehicleNo, source, destination, jobDept_Date, jobArr_Date);
+
+    if (
+      !vehicleNo ||
+      !source.lat ||
+      !source.long ||
+      !destination.lat ||
+      !destination.long ||
+      !jobDept_Date ||
+      !jobArr_Date
+    ) {
+      return res.status(400).json({ message: "Invalid or missing trip details" });
+    }
+
+    const jobStartDate = new Date(jobDept_Date);
+    const jobEndDate = new Date(jobArr_Date);
+    console.log(jobStartDate);
+    console.log(jobEndDate);
+
+    const tripDetails = await VehiclePathModel.find({
+      vehicleNo: vehicleNo,
+      createdAt: {
+        $gte: jobStartDate,
+        $lte: jobEndDate,
+      },
+      // latitude: { $gte: Math.min(source.lat, destination.lat), $lte: Math.max(source.lat, destination.lat) },
+      // longitude: { $gte: Math.min(source.long, destination.long), $lte: Math.max(source.long, destination.long) },
+    });
+
+    const filteredTripDetails = tripDetails.map((position) => ({
+      lat: parseFloat(position.latitude),
+      lng: parseFloat(position.longitude),
+      speed: parseFloat(position.speed),
+      address: position.address,
+      time: position.createdAt,
+    }));
+
+    // Calculate total stop time and group by unique stop locations
+    const stops = {};
+    let currentStop = null;
+
+    for (let i = 0; i < tripDetails.length; i++) {
+      const position = tripDetails[i];
+      if (parseFloat(position.speed) === 0) {
+        const stopKey = `${position.latitude},${position.longitude}`;
+        if (!currentStop) {
+          currentStop = { startTime: position.createdAt, stopKey };
+        }
+      } else {
+        if (currentStop) {
+          const duration = (new Date(position.createdAt) - new Date(currentStop.startTime)) / (1000 * 60); // in minutes
+          if (duration > 10) {
+            if (!stops[currentStop.stopKey]) {
+              stops[currentStop.stopKey] = {
+                lat: parseFloat(tripDetails[i - 1].latitude),
+                lng: parseFloat(tripDetails[i - 1].longitude),
+                totalStopTime: 0,
+              };
+            }
+            stops[currentStop.stopKey].totalStopTime += duration;
+          }
+          currentStop = null;
+        }
+      }
+    }
+
+    // Handle the case where the last stop is still ongoing
+    if (currentStop) {
+      const duration = (new Date(jobEndDate) - new Date(currentStop.startTime)) / (1000 * 60); // in minutes
+      if (duration > 10) {
+        if (!stops[currentStop.stopKey]) {
+          stops[currentStop.stopKey] = {
+            lat: parseFloat(tripDetails[tripDetails.length - 1].latitude),
+            lng: parseFloat(tripDetails[tripDetails.length - 1].longitude),
+            totalStopTime: 0,
+          };
+        }
+        stops[currentStop.stopKey].totalStopTime += duration;
+      }
+    }
+
+    return res.status(200).json({
+      message: "Trip details fetched successfully",
+      tripDetails: filteredTripDetails,
+      stops: Object.values(stops).map((stop) => ({
+        ...stop,
+        totalStopTime: `${(stop.totalStopTime / 60).toFixed(2)} hours`, // Convert minutes to hours
+      })),
+    });
+  } catch (error) {
+    console.error("Error processing trip details:", error.message);
+    return res.status(500).json({ message: "Internal Server Error", error: error.message });
+  }
+};
+
 // get address, Distanse, km, time road
 async function getRoadDistance(lat1, lon1, lat2, lon2) {
   const apiKey = process.env.MAP_API_KEY; // Replace with your key
