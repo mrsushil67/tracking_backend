@@ -473,20 +473,40 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
       return res.status(400).json({ message: "Invalid or missing trip details" });
     }
 
-    const jobStartDate = new Date(jobDept_Date);
-    const jobEndDate = new Date(jobArr_Date);
-    console.log(jobStartDate);
-    console.log(jobEndDate);
+    const startDate = new Date(jobDept_Date);
+    const endDate = new Date(jobArr_Date);
 
-    const tripDetails = await VehiclePathModel.find({
-      vehicleNo: vehicleNo,
-      createdAt: {
-        $gte: jobStartDate,
-        $lte: jobEndDate,
+    const pipeline = [
+      {
+        $geoNear: {
+          near: {
+            type: "Point",
+            coordinates: [parseFloat(source.long), parseFloat(source.lat)],
+          },
+          distanceField: "distanceFromSource",
+          maxDistance: 500, // in meters
+          spherical: true,
+          query: {
+            vehicleNo,
+            createdAt: { $gte: startDate, $lte: endDate },
+          },
+        },
       },
-      // latitude: { $gte: Math.min(source.lat, destination.lat), $lte: Math.max(source.lat, destination.lat) },
-      // longitude: { $gte: Math.min(source.long, destination.long), $lte: Math.max(source.long, destination.long) },
-    });
+      {
+        $match: {
+          location: {
+            $geoWithin: {
+              $centerSphere: [
+                [parseFloat(destination.long), parseFloat(destination.lat)],
+                500 / 6378137, // 500 meters in radians
+              ],
+            },
+          },
+        },
+      },
+    ];
+
+    const tripDetails = await VehiclePathModel.aggregate(pipeline);
 
     const filteredTripDetails = tripDetails.map((position) => ({
       lat: parseFloat(position.latitude),
@@ -509,7 +529,9 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
         }
       } else {
         if (currentStop) {
-          const duration = (new Date(position.createdAt) - new Date(currentStop.startTime)) / (1000 * 60); // in minutes
+          const duration =
+            (new Date(position.createdAt) - new Date(currentStop.startTime)) /
+            (1000 * 60); // in minutes
           if (duration > 10) {
             if (!stops[currentStop.stopKey]) {
               stops[currentStop.stopKey] = {
@@ -527,7 +549,8 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
 
     // Handle the case where the last stop is still ongoing
     if (currentStop) {
-      const duration = (new Date(jobEndDate) - new Date(currentStop.startTime)) / (1000 * 60); // in minutes
+      const duration =
+        (new Date(endDate) - new Date(currentStop.startTime)) / (1000 * 60); // in minutes
       if (duration > 10) {
         if (!stops[currentStop.stopKey]) {
           stops[currentStop.stopKey] = {
