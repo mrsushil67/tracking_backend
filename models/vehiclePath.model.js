@@ -22,9 +22,25 @@ const VehiclePathSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        required: true,
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        required: true
+      }
+    },
   },
   { timestamps: true }
 );
+
+
+// Create a 2dsphere index on the location field
+VehiclePathSchema.index({ location: '2dsphere' });
 
 VehiclePathSchema.index({ createdAt: 1 }, { expireAfterSeconds: 1296000 });
 
