@@ -5,7 +5,7 @@ const { getToken } = require("../middlewares/authMiddleware");
 const VehiclePathModel = require("../models/vehiclePath.model");
 const AllVehiclesModel = require("../models/vehicles.model");
 const moment = require("moment");
-const {sendNotification} = require("../services/notify.service");
+const { sendNotification } = require("../services/notify.service");
 require("dotenv").config();
 
 module.exports.createVehicles = async (req, res) => {
@@ -49,7 +49,7 @@ module.exports.getVehicles = async (req, res) => {
 const updateVehicleDetails = async () => {
   try {
     const vehicles = await AllVehiclesModel.find({}, "vehicleNo"); // Fetch all vehicle numbers\
-    const token = await getToken()
+    const token = await getToken();
     // console.log("Token : ",token)
 
     const updateRequests = vehicles.map(async (e) => {
@@ -60,7 +60,7 @@ const updateVehicleDetails = async () => {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-        
+
         if (response && response.data) {
           const data = response.data;
 
@@ -143,8 +143,7 @@ module.exports.registerVehiclesFromExcel = async (req, res) => {
       .filter((vehicleNo) => !existingVehicleNumbers.has(vehicleNo))
       .map((vehicleNo) => ({ vehicleNo }));
 
-
-    const token = getToken()
+    const token = getToken();
     // Insert new vehicles if any
     if (newVehicles.length > 0) {
       const requests = newVehicles.map(async (e) => {
@@ -261,7 +260,7 @@ const addVehiclePath = async () => {
   try {
     const fleetsVehicles = await AllVehiclesModel.find({});
 
-    const token = await getToken()
+    const token = await getToken();
 
     fleetsVehicles.forEach(async (e) => {
       try {
@@ -271,48 +270,23 @@ const addVehiclePath = async () => {
         );
 
         // console.log(vehiclePos.data)
-        const { vehicleNumber, latitude, longitude, speed, address } = vehiclePos.data;
+        const { vehicleNumber, latitude, longitude, speed, address } =
+          vehiclePos.data;
 
-        const existingVehiclePath = await VehiclePathModel.findOne({
-          vehicleNo: e.vehicleNo,
-        });
-        if (!existingVehiclePath) {
-          const newData = new VehiclePathModel({
+          const vehiclePath = new VehiclePathModel({
             vehicleNo: vehicleNumber,
-            latitude: latitude,
-            longitude: longitude,
-            speed: speed,
+            latitude,
+            longitude,
+            speed,
             address: address || "N/A",
+            location: {
+              type: 'Point',
+              coordinates: [parseFloat(longitude), parseFloat(latitude)],
+            },
+            timestamp: new Date(), // if you're tracking time
           });
-          await newData.save();
-        }
-
-        // if (parseFloat(speed) > 0) {
-        //   const newData = new VehiclePathModel({
-        //     vehicleNo: vehicleNumber,
-        //     latitude: latitude,
-        //     longitude: longitude,
-        //     speed: speed,
-        //     address: address || "N/A",
-        //   });
-        //   await newData.save();
-        // } else {
-        //   // console.log("Skipping entry because speed is 0:", speed);
-        // }
-
-        if (speed !== "0") {
-          // console.log("Ye bala +++++++++++++++++++++++++++++++")
-          const newData = new VehiclePathModel({
-            vehicleNo: vehicleNumber,
-            latitude: latitude,
-            longitude: longitude,
-            speed: speed,
-            address: address || "N/A",
-          });
-          await newData.save();
-        }else{
-          console.log(speed)
-        }
+  
+          await vehiclePath.save();
       } catch (error) {
         if (error?.response?.status === 404) {
           // console.log(
@@ -329,16 +303,16 @@ setInterval(addVehiclePath, 10 * 1000);
 
 module.exports.getVehiclesPath = async (req, res) => {
   const { vehicleNo, fromDate } = req.query;
-  if(!vehicleNo){
-    return res.status(400).json({message:"vehicle no is required"})
+  if (!vehicleNo) {
+    return res.status(400).json({ message: "vehicle no is required" });
   }
 
-  console.log("Query2 : ",req.query)
+  console.log("Query2 : ", req.query);
   try {
-    const time24 = moment().subtract(24,"h")
+    const time24 = moment().subtract(24, "h");
     const twentyFourHoursAgo = new Date(time24);
-    console.log("time24",new Date(time24));
-    
+    console.log("time24", new Date(time24));
+
     // twentyFourHoursAgo.setTime(
     //   twentyFourHoursAgo.getTime() - 24 * 60 * 60 * 1000
     // );
@@ -458,63 +432,59 @@ module.exports.totalRunningVehicles = async (req, res) => {
 
 module.exports.getRootDataByTripDetails = async (req, res) => {
   try {
-    const { vehicleNo, source, destination, jobDept_Date, jobArr_Date } = req.body;
-    console.log("tripDetails : ", vehicleNo, source, destination, jobDept_Date, jobArr_Date);
+    const { vehicleNo, source, destination, jobDept_Date, jobArr_Date } =
+      req.body;
 
     if (
       !vehicleNo ||
       !source.lat ||
       !source.long ||
       !destination.lat ||
-      !destination.long ||
-      !jobDept_Date ||
-      !jobArr_Date
+      !destination.long
     ) {
-      return res.status(400).json({ message: "Invalid or missing trip details" });
+      return res
+        .status(400)
+        .json({ message: "Invalid or missing trip details" });
     }
 
-    const startDate = new Date(jobDept_Date);
-    const endDate = new Date(jobArr_Date);
-
-    const pipeline = [
-      {
-        $geoNear: {
-          near: {
+    const nearSource = await VehiclePathModel.find({
+      vehicleNo,
+      location: {
+        $nearSphere: {
+          $geometry: {
             type: "Point",
             coordinates: [parseFloat(source.long), parseFloat(source.lat)],
           },
-          distanceField: "distanceFromSource",
-          maxDistance: 500, // in meters
-          spherical: true,
-          query: {
-            vehicleNo,
-            createdAt: { $gte: startDate, $lte: endDate },
-          },
+          $maxDistance: 500,
         },
       },
-      {
-        $match: {
-          location: {
-            $geoWithin: {
-              $centerSphere: [
-                [parseFloat(destination.long), parseFloat(destination.lat)],
-                500 / 6378137, // 500 meters in radians
-              ],
-            },
+    });
+    
+    const nearDestination = await VehiclePathModel.find({
+      vehicleNo,
+      location: {
+        $nearSphere: {
+          $geometry: {
+            type: "Point",
+            coordinates: [parseFloat(destination.long), parseFloat(destination.lat)],
           },
+          $maxDistance: 500,
         },
       },
-    ];
+    });
+    
+    // console.log(nearSource)
+    // console.log(nearDestination)
 
-    const tripDetails = await VehiclePathModel.aggregate(pipeline);
+    const tripDetails = await VehiclePathModel.find({
+      vehicleNo,
+      createdAt: {
+      $gte: nearSource[0]?.createdAt,
+      $lte: nearDestination[0]?.createdAt,
+      },
+    }).sort({ createdAt: 1 });
 
-    const filteredTripDetails = tripDetails.map((position) => ({
-      lat: parseFloat(position.latitude),
-      lng: parseFloat(position.longitude),
-      speed: parseFloat(position.speed),
-      address: position.address,
-      time: position.createdAt,
-    }));
+    // console.log("tripDetails : ",tripDetails)
 
     // Calculate total stop time and group by unique stop locations
     const stops = {};
@@ -565,7 +535,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
 
     return res.status(200).json({
       message: "Trip details fetched successfully",
-      tripDetails: filteredTripDetails,
+      total: tripDetails.length,
       stops: Object.values(stops).map((stop) => ({
         ...stop,
         totalStopTime: `${(stop.totalStopTime / 60).toFixed(2)} hours`, // Convert minutes to hours
@@ -573,7 +543,9 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     });
   } catch (error) {
     console.error("Error processing trip details:", error.message);
-    return res.status(500).json({ message: "Internal Server Error", error: error.message });
+    return res
+      .status(500)
+      .json({ message: "Internal Server Error", error: error.message });
   }
 };
 
@@ -610,5 +582,3 @@ async function getRoadDistance(lat1, lon1, lat2, lon2) {
   }
 }
 // getRoadDistance(28.10042, 77.33588166666668, 19.076090, 72.877426);
-
-
