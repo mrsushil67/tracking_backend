@@ -453,6 +453,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     const startDate = new Date(jobDept_Date);
     const endDate = new Date(jobArr_Date);
 
+    // Adjusting the query to ensure it fetches data within the given time range
     const nearSource = await VehiclePathModel.find({
       vehicleNo,
       location: {
@@ -461,11 +462,11 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
             type: "Point",
             coordinates: [parseFloat(source.long), parseFloat(source.lat)],
           },
-          $maxDistance: 500,
+          $maxDistance: 5000, // Adjust the distance if needed
         },
       },
       createdAt: { $gte: startDate, $lte: endDate },
-    });
+    }).sort({ createdAt: 1 });
 
     const nearDestination = await VehiclePathModel.find({
       vehicleNo,
@@ -478,20 +479,18 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
               parseFloat(destination.lat),
             ],
           },
-          $maxDistance: 500,
+          $maxDistance: 5000, // Adjust the distance if needed
         },
       },
       createdAt: { $gte: startDate, $lte: endDate },
-    });
+    }).sort({ createdAt: 1 });
 
     if (!nearSource.length || !nearDestination.length) {
-      return res
-        .status(404)
-        .json({ message: "No trip data found for the given details" });
+      return res.status(404).json({
+        message:
+          "No trip data found for the given details. Please check the source, destination, or date range.",
+      });
     }
-
-    nearSource.sort((a, b) => a.createdAt - b.createdAt);
-    nearDestination.sort((a, b) => a.createdAt - b.createdAt);
 
     const tripDetails = await VehiclePathModel.find({
       vehicleNo,
@@ -609,4 +608,38 @@ async function getRoadDistance(lat1, lon1, lat2, lon2) {
     return null;
   }
 }
-// getRoadDistance(28.10042, 77.33588166666668, 19.076090, 72.877426);
+// getRoadDistance(19.32476785, 73.553843, 22.292720172, 75.787532089);
+
+module.exports.getVehicleCurrentLoc = async (req, res) => {
+  const { vehicleNo } = req.query;
+  if (!vehicleNo) {
+    return res.status(400).json({ message: "vehicle no is required" });
+  }
+
+  try {
+    const vehicle = await AllVehiclesModel.findOne({ vehicleNo: vehicleNo });
+
+    if (!vehicle) {
+      return res.status(404).json({ message: "Invalid vehicle number" });
+    }
+
+    const latestVehiclePath = await VehiclePathModel.findOne({
+      vehicleNo: vehicleNo,
+    }).sort({ createdAt: -1 }); // Fetch the latest entry
+
+    if (!latestVehiclePath) {
+      return res.status(404).json({ message: "No location data found" });
+    }
+
+    const currentLocation = {
+      lat: parseFloat(latestVehiclePath.latitude),
+      lng: parseFloat(latestVehiclePath.longitude),
+      time: latestVehiclePath.createdAt,
+    };
+
+    return res.status(200).json(currentLocation);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
