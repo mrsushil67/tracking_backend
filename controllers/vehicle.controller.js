@@ -273,20 +273,20 @@ const addVehiclePath = async () => {
         const { vehicleNumber, latitude, longitude, speed, address } =
           vehiclePos.data;
 
-          const vehiclePath = new VehiclePathModel({
-            vehicleNo: vehicleNumber,
-            latitude,
-            longitude,
-            speed,
-            address: address || "N/A",
-            location: {
-              type: 'Point',
-              coordinates: [parseFloat(longitude), parseFloat(latitude)],
-            },
-            timestamp: new Date(), // if you're tracking time
-          });
-  
-          await vehiclePath.save();
+        const vehiclePath = new VehiclePathModel({
+          vehicleNo: vehicleNumber,
+          latitude,
+          longitude,
+          speed,
+          address: address || "N/A",
+          location: {
+            type: "Point",
+            coordinates: [parseFloat(longitude), parseFloat(latitude)],
+          },
+          timestamp: new Date(), // if you're tracking time
+        });
+
+        await vehiclePath.save();
       } catch (error) {
         if (error?.response?.status === 404) {
           // console.log(
@@ -435,17 +435,23 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     const { vehicleNo, source, destination, jobDept_Date, jobArr_Date } =
       req.body;
 
+    console.log(req.body);
     if (
       !vehicleNo ||
       !source.lat ||
       !source.long ||
       !destination.lat ||
-      !destination.long
+      !destination.long ||
+      !jobDept_Date ||
+      !jobArr_Date
     ) {
       return res
         .status(400)
         .json({ message: "Invalid or missing trip details" });
     }
+
+    const startDate = new Date(jobDept_Date);
+    const endDate = new Date(jobArr_Date);
 
     const nearSource = await VehiclePathModel.find({
       vehicleNo,
@@ -458,35 +464,43 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
           $maxDistance: 500,
         },
       },
+      createdAt: { $gte: startDate, $lte: endDate },
     });
-    
+
     const nearDestination = await VehiclePathModel.find({
       vehicleNo,
       location: {
         $nearSphere: {
           $geometry: {
             type: "Point",
-            coordinates: [parseFloat(destination.long), parseFloat(destination.lat)],
+            coordinates: [
+              parseFloat(destination.long),
+              parseFloat(destination.lat),
+            ],
           },
           $maxDistance: 500,
         },
       },
+      createdAt: { $gte: startDate, $lte: endDate },
     });
-    
-    // console.log(nearSource)
-    // console.log(nearDestination)
+
+    if (!nearSource.length || !nearDestination.length) {
+      return res
+        .status(404)
+        .json({ message: "No trip data found for the given details" });
+    }
+
+    nearSource.sort((a, b) => a.createdAt - b.createdAt);
+    nearDestination.sort((a, b) => a.createdAt - b.createdAt);
 
     const tripDetails = await VehiclePathModel.find({
       vehicleNo,
       createdAt: {
-      $gte: nearSource[0]?.createdAt,
-      $lte: nearDestination[0]?.createdAt,
+        $gte: nearSource[0].createdAt,
+        $lte: nearDestination[nearDestination.length - 1].createdAt,
       },
-    }).sort({ createdAt: 1 });
+    });
 
-    // console.log("tripDetails : ",tripDetails)
-
-    // Calculate total stop time and group by unique stop locations
     const stops = {};
     let currentStop = null;
 
@@ -499,15 +513,18 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
         }
       } else {
         if (currentStop) {
-          const duration =
-            (new Date(position.createdAt) - new Date(currentStop.startTime)) /
-            (1000 * 60); // in minutes
-          if (duration > 10) {
+          const durationMs =
+            new Date(position.createdAt) - new Date(currentStop.startTime);
+          const duration = Math.floor(durationMs / 1000); // in seconds
+          if (duration > 10 * 60) {
+            // More than 10 minutes
             if (!stops[currentStop.stopKey]) {
               stops[currentStop.stopKey] = {
                 lat: parseFloat(tripDetails[i - 1].latitude),
                 lng: parseFloat(tripDetails[i - 1].longitude),
                 totalStopTime: 0,
+                stopStartTime: currentStop.startTime,
+                stopEndTime: position.createdAt,
               };
             }
             stops[currentStop.stopKey].totalStopTime += duration;
@@ -519,14 +536,17 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
 
     // Handle the case where the last stop is still ongoing
     if (currentStop) {
-      const duration =
-        (new Date(endDate) - new Date(currentStop.startTime)) / (1000 * 60); // in minutes
-      if (duration > 10) {
+      const durationMs = new Date(endDate) - new Date(currentStop.startTime);
+      const duration = Math.floor(durationMs / 1000); // in seconds
+      if (duration > 10 * 60) {
+        // More than 10 minutes
         if (!stops[currentStop.stopKey]) {
           stops[currentStop.stopKey] = {
             lat: parseFloat(tripDetails[tripDetails.length - 1].latitude),
             lng: parseFloat(tripDetails[tripDetails.length - 1].longitude),
             totalStopTime: 0,
+            stopStartTime: currentStop.startTime,
+            stopEndTime: endDate,
           };
         }
         stops[currentStop.stopKey].totalStopTime += duration;
@@ -536,10 +556,18 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     return res.status(200).json({
       message: "Trip details fetched successfully",
       total: tripDetails.length,
-      stops: Object.values(stops).map((stop) => ({
-        ...stop,
-        totalStopTime: `${(stop.totalStopTime / 60).toFixed(2)} hours`, // Convert minutes to hours
-      })),
+      stops: Object.values(stops).map((stop) => {
+        const totalSeconds = stop.totalStopTime;
+        const days = Math.floor(totalSeconds / (24 * 3600));
+        const hours = Math.floor((totalSeconds % (24 * 3600)) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        return {
+          ...stop,
+          totalStopTime: `${days}d ${hours}h ${minutes}m ${seconds}s`,
+        };
+      }),
     });
   } catch (error) {
     console.error("Error processing trip details:", error.message);
