@@ -26,6 +26,6 @@ router.get("/totalRunning", VehicleController.totalRunningVehicles);
 
 router.post("/routByTripDetails", VehicleController.getRootDataByTripDetails)
 
-router.get("/CurrentLoc",VehicleController.getVehicleCurrentLoc)
+router.get("/CurrentLoc", VehicleController.getVehicleCurrentLoc)
 
 module.exports = router;

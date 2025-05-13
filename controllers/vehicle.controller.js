@@ -450,55 +450,75 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
         .json({ message: "Invalid or missing trip details" });
     }
 
-    const startDate = new Date(jobDept_Date);
-    const endDate = new Date(jobArr_Date);
+    const startDate = jobDept_Date;
+    const endDate = jobArr_Date;
+    console.log(startDate)
+    console.log(endDate)
 
-    // Adjusting the query to ensure it fetches data within the given time range
-    const nearSource = await VehiclePathModel.find({
-      vehicleNo,
-      location: {
-        $nearSphere: {
-          $geometry: {
+    const nearSource = await VehiclePathModel.aggregate([
+      {
+        $geoNear: {
+          near: {
             type: "Point",
             coordinates: [parseFloat(source.long), parseFloat(source.lat)],
           },
-          $maxDistance: 5000, // Adjust the distance if needed
+          key: "location",
+          distanceField: "DistanceKilometers",
+          spherical: true,
+          distanceMultiplier: 0.001,
+          query: {
+            vehicleNo,
+            // createdAt: {
+            //   $gte: startDate,
+            // },
+          },
         },
       },
-      createdAt: { $gte: startDate, $lte: endDate },
-    }).sort({ createdAt: 1 });
+    ]);
 
-    const nearDestination = await VehiclePathModel.find({
-      vehicleNo,
-      location: {
-        $nearSphere: {
-          $geometry: {
+    const nearDestination = await VehiclePathModel.aggregate([
+      {
+        $geoNear: {
+          near: {
             type: "Point",
             coordinates: [
               parseFloat(destination.long),
               parseFloat(destination.lat),
             ],
           },
-          $maxDistance: 5000, // Adjust the distance if needed
+          key: "location",
+          distanceField: "DistanceKilometers",
+          spherical: true,
+          distanceMultiplier: 0.001,
+          query: {
+            vehicleNo,
+            // createdAt: {
+            //   $lte: endDate
+            // },
+          },
         },
       },
-      createdAt: { $gte: startDate, $lte: endDate },
-    }).sort({ createdAt: 1 });
+    ]);
+
+    console.log("nearSource : ", nearSource[0]);
+    console.log("nearDestination : ", nearDestination[0]);
 
     if (!nearSource.length || !nearDestination.length) {
       return res.status(404).json({
         message:
-          "No trip data found for the given details. Please check the source, destination, or date range.",
+          "No trip data found for the given details. Please check the source, destination",
       });
     }
 
     const tripDetails = await VehiclePathModel.find({
       vehicleNo,
       createdAt: {
-        $gte: nearSource[0].createdAt,
-        $lte: nearDestination[nearDestination.length - 1].createdAt,
+        $gte:nearSource[0].createdAt,
+        $lte:nearDestination[0].createdAt,
       },
     });
+
+    console.log(tripDetails.length);
 
     const stops = {};
     let currentStop = null;
@@ -514,7 +534,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
         if (currentStop) {
           const durationMs =
             new Date(position.createdAt) - new Date(currentStop.startTime);
-          const duration = Math.floor(durationMs / 1000); // in seconds
+          const duration = Math.floor(durationMs / 1000);
           if (duration > 10 * 60) {
             // More than 10 minutes
             if (!stops[currentStop.stopKey]) {
