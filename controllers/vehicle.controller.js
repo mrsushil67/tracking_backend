@@ -450,144 +450,34 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
         .json({ message: "Invalid or missing trip details" });
     }
 
-    const startDate = jobDept_Date;
-    const endDate = jobArr_Date;
-    console.log(startDate)
-    console.log(endDate)
+    const startDate = moment.utc(jobDept_Date).startOf('day').toDate();
+    const endDate = moment.utc(jobArr_Date).endOf('day').toDate();
+    
+    console.log("Start UTC:", startDate);
+    console.log("End UTC:", endDate); 
 
-    const nearSource = await VehiclePathModel.aggregate([
-      {
-        $geoNear: {
-          near: {
-            type: "Point",
-            coordinates: [parseFloat(source.long), parseFloat(source.lat)],
-          },
-          key: "location",
-          distanceField: "DistanceKilometers",
-          spherical: true,
-          distanceMultiplier: 0.001,
-          query: {
-            vehicleNo,
-            // createdAt: {
-            //   $gte: startDate,
-            // },
-          },
-        },
-      },
-    ]);
-
-    const nearDestination = await VehiclePathModel.aggregate([
-      {
-        $geoNear: {
-          near: {
-            type: "Point",
-            coordinates: [
-              parseFloat(destination.long),
-              parseFloat(destination.lat),
-            ],
-          },
-          key: "location",
-          distanceField: "DistanceKilometers",
-          spherical: true,
-          distanceMultiplier: 0.001,
-          query: {
-            vehicleNo,
-            // createdAt: {
-            //   $lte: endDate
-            // },
-          },
-        },
-      },
-    ]);
-
-    console.log("nearSource : ", nearSource[0]);
-    console.log("nearDestination : ", nearDestination[0]);
-
-    if (!nearSource.length || !nearDestination.length) {
-      return res.status(404).json({
-        message:
-          "No trip data found for the given details. Please check the source, destination",
-      });
+    if (isNaN(startDate) || isNaN(endDate)) {
+      console.log("Invalid date format");
+      return res.status(400).json({ message: "Invalid date format" });
     }
 
-    const tripDetails = await VehiclePathModel.find({
-      vehicleNo,
+    const vehiclePaths = await VehiclePathModel.find({
+      vehicleNo: vehicleNo,
       createdAt: {
-        $gte:nearSource[0].createdAt,
-        $lte:nearDestination[0].createdAt,
+        $gte: startDate,
+        $lte: endDate,
       },
-    });
+    }).sort({ createdAt: 1 });
+    console.log("total : ", vehiclePaths.length);
 
-    console.log(tripDetails.length);
-
-    const stops = {};
-    let currentStop = null;
-
-    for (let i = 0; i < tripDetails.length; i++) {
-      const position = tripDetails[i];
-      if (parseFloat(position.speed) === 0) {
-        const stopKey = `${position.latitude},${position.longitude}`;
-        if (!currentStop) {
-          currentStop = { startTime: position.createdAt, stopKey };
-        }
-      } else {
-        if (currentStop) {
-          const durationMs =
-            new Date(position.createdAt) - new Date(currentStop.startTime);
-          const duration = Math.floor(durationMs / 1000);
-          if (duration > 10 * 60) {
-            // More than 10 minutes
-            if (!stops[currentStop.stopKey]) {
-              stops[currentStop.stopKey] = {
-                lat: parseFloat(tripDetails[i - 1].latitude),
-                lng: parseFloat(tripDetails[i - 1].longitude),
-                totalStopTime: 0,
-                stopStartTime: currentStop.startTime,
-                stopEndTime: position.createdAt,
-              };
-            }
-            stops[currentStop.stopKey].totalStopTime += duration;
-          }
-          currentStop = null;
-        }
-      }
+    if (!vehiclePaths.length) {
+      console.log("No data found for the given trip details");
+      return res
+        .status(404)
+        .json({ message: "No data found for the given trip details" });
     }
 
-    // Handle the case where the last stop is still ongoing
-    if (currentStop) {
-      const durationMs = new Date(endDate) - new Date(currentStop.startTime);
-      const duration = Math.floor(durationMs / 1000); // in seconds
-      if (duration > 10 * 60) {
-        // More than 10 minutes
-        if (!stops[currentStop.stopKey]) {
-          stops[currentStop.stopKey] = {
-            lat: parseFloat(tripDetails[tripDetails.length - 1].latitude),
-            lng: parseFloat(tripDetails[tripDetails.length - 1].longitude),
-            totalStopTime: 0,
-            stopStartTime: currentStop.startTime,
-            stopEndTime: endDate,
-          };
-        }
-        stops[currentStop.stopKey].totalStopTime += duration;
-      }
-    }
-
-    return res.status(200).json({
-      message: "Trip details fetched successfully",
-      total: tripDetails.length,
-      stops: Object.values(stops).map((stop) => {
-        const totalSeconds = stop.totalStopTime;
-        const days = Math.floor(totalSeconds / (24 * 3600));
-        const hours = Math.floor((totalSeconds % (24 * 3600)) / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-
-        return {
-          ...stop,
-          totalStopTime: `${days}d ${hours}h ${minutes}m ${seconds}s`,
-        };
-      }),
-    });
+    return res.status(200).json(vehiclePaths);
   } catch (error) {
     console.error("Error processing trip details:", error.message);
     return res
