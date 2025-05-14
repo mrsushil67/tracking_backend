@@ -542,68 +542,53 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
 
     const fullTrip = vehiclePaths.slice(startIndex, endIndex + 1);
 
-    // Find stopped points
-    const stoppedPoints = [];
-    let currentStop = null;
+    // Find stops
+    const stops = [];
+    let stopStart = null;
+    let stopEnd = null;
+    let stopCount = 0;
 
     for (let i = 0; i < fullTrip.length; i++) {
-      const point = fullTrip[i];
-      const prevPoint = i > 0 ? fullTrip[i - 1] : null;
+      const current = fullTrip[i];
+      const next = fullTrip[i + 1];
 
-      if (
-        point.speed === "0" &&
-        prevPoint &&
-        point.latitude === prevPoint.latitude &&
-        point.longitude === prevPoint.longitude
-      ) {
-        if (!currentStop) {
-          currentStop = {
-            startTime: point.createdAt,
-            lat: point.latitude,
-            long: point.longitude,
-          };
+      if (current.speed === "0") {
+        if (!stopStart) {
+          stopStart = current;
         }
-      } else if (currentStop) {
-        currentStop.endTime = prevPoint.createdAt;
-        currentStop.duration = moment
-          .duration(moment(currentStop.endTime).diff(moment(currentStop.startTime)))
-          .asSeconds();
-        stoppedPoints.push(currentStop);
-        currentStop = null;
+        stopCount++;
+      } else {
+        if (stopStart && stopCount > 60) {
+          stopEnd = current;
+          const durationMs =
+            new Date(stopEnd.createdAt) - new Date(stopStart.createdAt);
+          const duration = {
+            hours: Math.floor(durationMs / (1000 * 60 * 60)),
+            minutes: Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60)),
+            seconds: Math.floor((durationMs % (1000 * 60)) / 1000),
+          };
+
+          stops.push({
+            location: {
+              lat: stopStart.location.coordinates[1],
+              long: stopStart.location.coordinates[0],
+            },
+            startTime: stopStart.createdAt,
+            endTime: stopEnd.createdAt,
+            duration,
+          });
+        }
+        stopStart = null;
+        stopCount = 0;
       }
     }
-
-    // If the last point is still part of a stop
-    if (currentStop) {
-      currentStop.endTime = fullTrip[fullTrip.length - 1].createdAt;
-      currentStop.duration = moment
-        .duration(moment(currentStop.endTime).diff(moment(currentStop.startTime)))
-        .asSeconds();
-      stoppedPoints.push(currentStop);
-    }
-
-    const totalStoppedTime = stoppedPoints.reduce(
-      (acc, stop) => acc + stop.duration,
-      0
-    );
 
     return res.status(200).json({
       totalPoints: fullTrip.length,
       fromTime: vehiclePaths[startIndex].createdAt,
       toTime: vehiclePaths[endIndex].createdAt,
       path: fullTrip,
-      stops: stoppedPoints.map((stop) => ({
-        lat: stop.lat,
-        long: stop.long,
-        startTime: stop.startTime,
-        endTime: stop.endTime,
-        duration: `${Math.floor(stop.duration / 3600)}h ${Math.floor(
-          (stop.duration % 3600) / 60
-        )}m ${stop.duration % 60}s`,
-      })),
-      totalStoppedTime: `${Math.floor(totalStoppedTime / 3600)}h ${Math.floor(
-        (totalStoppedTime % 3600) / 60
-      )}m ${totalStoppedTime % 60}s`,
+      stops,
     });
   } catch (error) {
     console.error("Error processing trip details:", error.message);
