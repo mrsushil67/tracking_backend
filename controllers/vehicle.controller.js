@@ -430,18 +430,42 @@ module.exports.totalRunningVehicles = async (req, res) => {
   }
 };
 
+function getDistanceMeters(lat1, lon1, lat2, lon2) {
+  const toRad = (x) => (x * Math.PI) / 180;
+  const R = 6371000; // Earth radius in meters
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) ** 2;
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function isNear(p1, p2, maxMeters = 1000) {
+  return (
+    getDistanceMeters(p1.lat, p1.long, p2.lat, p2.long) <= maxMeters
+  );
+}
+
 module.exports.getRootDataByTripDetails = async (req, res) => {
   try {
     const { vehicleNo, source, destination, jobDept_Date, jobArr_Date } =
       req.body;
 
-    console.log(req.body);
+    console.log("Received Body:", req.body);
+
     if (
       !vehicleNo ||
-      !source.lat ||
-      !source.long ||
-      !destination.lat ||
-      !destination.long ||
+      !source?.lat ||
+      !source?.long ||
+      !destination?.lat ||
+      !destination?.long ||
       !jobDept_Date ||
       !jobArr_Date
     ) {
@@ -454,41 +478,85 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     const endDate = new Date(jobArr_Date);
 
     const oneDayMs = 24 * 60 * 60 * 1000;
-    const twoDayMs = 2 * 24 * 60 * 60 * 1000;
-
     const queryStart = new Date(startDate.getTime() - oneDayMs);
-    const queryEnd = new Date(endDate.getTime() + twoDayMs);
+    const queryEnd = new Date(endDate.getTime() + 2 * oneDayMs);
 
     console.log("Query Start:", queryStart.toISOString());
     console.log("Query End:", queryEnd.toISOString());
 
     if (isNaN(queryStart) || isNaN(queryEnd)) {
-      console.log("Invalid date format");
       return res.status(400).json({ message: "Invalid date format" });
     }
 
     const vehiclePaths = await VehiclePathModel.find({
-      vehicleNo: vehicleNo,
+      vehicleNo,
       createdAt: {
         $gte: queryStart,
         $lte: queryEnd,
       },
     }).sort({ createdAt: 1 });
-    console.log("total : ", vehiclePaths.length);
+
+    console.log("Total Path Points Found:", vehiclePaths.length);
 
     if (!vehiclePaths.length) {
-      console.log("No data found for the given trip details");
       return res
         .status(404)
         .json({ message: "No data found for the given trip details" });
     }
 
-    return res.status(200).json(vehiclePaths);
+    const src = { lat: parseFloat(source.lat), long: parseFloat(source.long) };
+    const dest = {
+      lat: parseFloat(destination.lat),
+      long: parseFloat(destination.long),
+    };
+
+    console.log(src)
+    console.log(dest)
+
+    let startIndex = vehiclePaths.findIndex((v) =>
+      isNear(
+        { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
+        src,
+        1000
+      )
+    );
+
+    let endIndex = [...vehiclePaths]
+      .reverse()
+      .findIndex((v) =>
+        isNear(
+          { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
+          dest,
+          1000
+        )
+      );
+
+      console.log("startIndex : ",startIndex)
+      console.log("endIndex : ",endIndex)
+
+    if (startIndex === -1 || endIndex === -1) {
+      return res.status(404).json({
+        message:
+          "Start or end location not found within proximity of provided coordinates",
+      });
+    }
+
+    endIndex = vehiclePaths.length - 1 - endIndex;
+
+    const fullTrip = vehiclePaths.slice(startIndex, endIndex + 1);
+
+    return res.status(200).json({
+      totalPoints: fullTrip.length,
+      fromTime: vehiclePaths[startIndex].createdAt,
+      toTime: vehiclePaths[endIndex].createdAt,
+      path: fullTrip,
+    });
   } catch (error) {
     console.error("Error processing trip details:", error.message);
-    return res
-      .status(500)
-      .json({ message: "Internal Server Error", error: error.message });
+    return res.status(500).json({
+      message: "Internal Server Error",
+      error: error.message,
+    });
   }
 };
 
