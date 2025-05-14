@@ -430,35 +430,185 @@ module.exports.totalRunningVehicles = async (req, res) => {
   }
 };
 
+// function getDistanceMeters(lat1, lon1, lat2, lon2) {
+//   const toRad = (x) => (x * Math.PI) / 180;
+//   const R = 6371000; // Earth radius in meters
+
+//   const dLat = toRad(lat2 - lat1);
+//   const dLon = toRad(lon2 - lon1);
+
+//   const a =
+//     Math.sin(dLat / 2) ** 2 +
+//     Math.cos(toRad(lat1)) *
+//       Math.cos(toRad(lat2)) *
+//       Math.sin(dLon / 2) ** 2;
+
+//   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+//   return R * c;
+// }
+
+// function isNear(p1, p2, maxMeters = 2000) {
+//   return (
+//     getDistanceMeters(p1.lat, p1.long, p2.lat, p2.long) <= maxMeters
+//   );
+// }
+
+// module.exports.getRootDataByTripDetails = async (req, res) => {
+//   try {
+//     const { vehicleNo, source, destination, jobDept_Date, jobArr_Date } =
+//       req.body;
+
+//     console.log("Received Body:", req.body);
+
+//     if (
+//       !vehicleNo ||
+//       !source?.lat ||
+//       !source?.long ||
+//       !destination?.lat ||
+//       !destination?.long ||
+//       !jobDept_Date ||
+//       !jobArr_Date
+//     ) {
+//       return res
+//         .status(400)
+//         .json({ message: "Invalid or missing trip details" });
+//     }
+
+//     const startDate = new Date(jobDept_Date);
+//     const endDate = new Date(jobArr_Date);
+
+//     const oneDayMs = 24 * 60 * 60 * 1000;
+//     const queryStart = new Date(startDate.getTime() - oneDayMs);
+//     const queryEnd = new Date(endDate.getTime() + 2 * oneDayMs);
+
+//     console.log("Query Start:", queryStart.toISOString());
+//     console.log("Query End:", queryEnd.toISOString());
+
+//     if (isNaN(queryStart) || isNaN(queryEnd)) {
+//       return res.status(400).json({ message: "Invalid date format" });
+//     }
+
+//     const vehiclePaths = await VehiclePathModel.find({
+//       vehicleNo,
+//       createdAt: {
+//         $gte: queryStart,
+//         $lte: queryEnd,
+//       },
+//     }).sort({ createdAt: 1 });
+
+//     console.log("Total Path Points Found:", vehiclePaths.length);
+
+//     if (!vehiclePaths.length) {
+//       return res
+//         .status(404)
+//         .json({ message: "No data found for the given trip details" });
+//     }
+
+//     const src = { lat: parseFloat(source.lat), long: parseFloat(source.long) };
+//     const dest = {
+//       lat: parseFloat(destination.lat),
+//       long: parseFloat(destination.long),
+//     };
+
+//     console.log(src)
+//     console.log(dest)
+
+//     let startIndex = vehiclePaths.findIndex((v) =>
+//       isNear(
+//         { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
+//         src,
+//         1000
+//       )
+//     );
+
+//     let endIndex = [...vehiclePaths]
+//       .reverse()
+//       .findIndex((v) =>
+//         isNear(
+//           { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
+//           dest,
+//           1000
+//         )
+//       );
+
+//       console.log("startIndex : ",startIndex)
+//       console.log("endIndex : ",endIndex)
+
+//     if (startIndex === -1 || endIndex === -1) {
+//       return res.status(404).json({
+//         message:
+//           "Start or end location not found within proximity of provided coordinates",
+//       });
+//     }
+
+//     endIndex = vehiclePaths.length - 1 - endIndex;
+
+//     const fullTrip = vehiclePaths.slice(startIndex, endIndex + 1);
+
+//     return res.status(200).json({
+//       totalPoints: fullTrip.length,
+//       fromTime: vehiclePaths[startIndex].createdAt,
+//       toTime: vehiclePaths[endIndex].createdAt,
+//       path: fullTrip,
+//     });
+//   } catch (error) {
+//     console.error("Error processing trip details:", error.message);
+//     return res.status(500).json({
+//       message: "Internal Server Error",
+//       error: error.message,
+//     });
+//   }
+// };
+
 function getDistanceMeters(lat1, lon1, lat2, lon2) {
   const toRad = (x) => (x * Math.PI) / 180;
-  const R = 6371000; // Earth radius in meters
-
+  const R = 6371000;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) *
       Math.cos(toRad(lat2)) *
       Math.sin(dLon / 2) ** 2;
-
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
 
-function isNear(p1, p2, maxMeters = 2000) {
+function isNear(p1, p2, maxMeters = 1000) {
   return (
     getDistanceMeters(p1.lat, p1.long, p2.lat, p2.long) <= maxMeters
   );
 }
 
+// Check if speed === 0 for at least 10 minutes from a starting index
+function hasZeroSpeedFor10Min(data, startIndex) {
+  let totalDuration = 0;
+  let i = startIndex;
+
+  while (i < data.length - 1) {
+    const current = data[i];
+    const next = data[i + 1];
+
+    if (Number(current.speed) === 0) {
+      const diff = new Date(next.createdAt).getTime() - new Date(current.createdAt).getTime();
+      totalDuration += diff;
+
+      if (totalDuration >= 10 * 60 * 1000) return true;
+    } else {
+      return false; // movement started, stop check
+    }
+
+    i++;
+  }
+
+  return false;
+}
+
+
 module.exports.getRootDataByTripDetails = async (req, res) => {
   try {
     const { vehicleNo, source, destination, jobDept_Date, jobArr_Date } =
       req.body;
-
-    console.log("Received Body:", req.body);
 
     if (
       !vehicleNo ||
@@ -476,32 +626,19 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
 
     const startDate = new Date(jobDept_Date);
     const endDate = new Date(jobArr_Date);
-
     const oneDayMs = 24 * 60 * 60 * 1000;
     const queryStart = new Date(startDate.getTime() - oneDayMs);
     const queryEnd = new Date(endDate.getTime() + 2 * oneDayMs);
 
-    console.log("Query Start:", queryStart.toISOString());
-    console.log("Query End:", queryEnd.toISOString());
-
-    if (isNaN(queryStart) || isNaN(queryEnd)) {
-      return res.status(400).json({ message: "Invalid date format" });
-    }
-
     const vehiclePaths = await VehiclePathModel.find({
       vehicleNo,
-      createdAt: {
-        $gte: queryStart,
-        $lte: queryEnd,
-      },
+      createdAt: { $gte: queryStart, $lte: queryEnd },
     }).sort({ createdAt: 1 });
-
-    console.log("Total Path Points Found:", vehiclePaths.length);
 
     if (!vehiclePaths.length) {
       return res
         .status(404)
-        .json({ message: "No data found for the given trip details" });
+        .json({ message: "No path data found in time range" });
     }
 
     const src = { lat: parseFloat(source.lat), long: parseFloat(source.long) };
@@ -510,55 +647,63 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
       long: parseFloat(destination.long),
     };
 
-    console.log(src)
-    console.log(dest)
+    // Find startIndex: nearest point to source where speed == 0 for 10+ minutes
+    let startIndex = -1;
+    for (let i = 0; i < vehiclePaths.length; i++) {
+      const point = vehiclePaths[i];
+      const coords = {
+        lat: point.location.coordinates[1],
+        long: point.location.coordinates[0],
+      };
+      if (isNear(coords, src, 1000) && point.speed === 0) {
+        if (hasZeroSpeedFor10Min(vehiclePaths, i)) {
+          startIndex = i;
+          break;
+        }
+      }
+    }
 
-    let startIndex = vehiclePaths.findIndex((v) =>
-      isNear(
-        { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
-        src,
-        1000
-      )
-    );
+    // Find endIndex: nearest point to destination where speed == 0 for 10+ minutes (search from end)
+    let endIndex = -1;
+    for (let i = vehiclePaths.length - 1; i >= 0; i--) {
+      const point = vehiclePaths[i];
+      const coords = {
+        lat: point.location.coordinates[1],
+        long: point.location.coordinates[0],
+      };
+      if (isNear(coords, dest, 1000) && point.speed === 0) {
+        if (hasZeroSpeedFor10Min(vehiclePaths, i)) {
+          endIndex = i;
+          break;
+        }
+      }
+    }
 
-    let endIndex = [...vehiclePaths]
-      .reverse()
-      .findIndex((v) =>
-        isNear(
-          { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
-          dest,
-          1000
-        )
-      );
-
-      console.log("startIndex : ",startIndex)
-      console.log("endIndex : ",endIndex)
-
-    if (startIndex === -1 || endIndex === -1) {
+    if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) {
       return res.status(404).json({
         message:
-          "Start or end location not found within proximity of provided coordinates",
+          "Could not find valid start and end points with 0-speed for 10 minutes",
       });
     }
 
-    endIndex = vehiclePaths.length - 1 - endIndex;
-
-    const fullTrip = vehiclePaths.slice(startIndex, endIndex + 1);
+    const tripPath = vehiclePaths.slice(startIndex, endIndex + 1);
 
     return res.status(200).json({
-      totalPoints: fullTrip.length,
+      message: "Trip path found",
+      totalPoints: tripPath.length,
       fromTime: vehiclePaths[startIndex].createdAt,
       toTime: vehiclePaths[endIndex].createdAt,
-      path: fullTrip,
+      path: tripPath,
     });
   } catch (error) {
-    console.error("Error processing trip details:", error.message);
+    console.error("Error:", error.message);
     return res.status(500).json({
-      message: "Internal Server Error",
+      message: "Internal server error",
       error: error.message,
     });
   }
 };
+
 
 // get address, Distanse, km, time road
 async function getRoadDistance(lat1, lon1, lat2, lon2) {
