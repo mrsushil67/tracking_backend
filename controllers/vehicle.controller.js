@@ -449,49 +449,40 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
         .status(400)
         .json({ message: "Invalid or missing trip details" });
     }
+
     const startDate = new Date(jobDept_Date);
     const endDate = new Date(jobArr_Date);
-    
-    if (isNaN(startDate) || isNaN(endDate)) {
+
+    const oneDayMs = 24 * 60 * 60 * 1000;
+
+    const queryStart = new Date(startDate.getTime() - oneDayMs);
+    const queryEnd = new Date(endDate.getTime() + oneDayMs);
+
+    console.log("Query Start:", queryStart.toISOString());
+    console.log("Query End:", queryEnd.toISOString());
+
+    if (isNaN(queryStart) || isNaN(queryEnd)) {
       console.log("Invalid date format");
       return res.status(400).json({ message: "Invalid date format" });
     }
-    
-    // Modify date range
-    startDate.setDate(startDate.getDate() - 1); // one day before
-    endDate.setDate(endDate.getDate() + 1);     // one day after
-    endDate.setHours(23, 59, 59, 999);          // extend to end of the day
-    
-    console.log("Adjusted Start:", startDate);
-    console.log("Adjusted End:", endDate);
-
-    if (isNaN(startDate) || isNaN(endDate)) {
-      console.log("Invalid date format")
-      return res.status(400).json({ message: "Invalid date format" });
-    }
-
-    // Ensure the end date includes the full day (set to end of the day)
-    endDate.setHours(23, 59, 59, 999);
-
-    console.log(startDate)
-    console.log(endDate)
 
     const vehiclePaths = await VehiclePathModel.find({
       vehicleNo: vehicleNo,
       createdAt: {
-        $gte: startDate,
-        $lte: endDate,
+        $gte: queryStart,
+        $lte: queryEnd,
       },
     }).sort({ createdAt: 1 });
-        console.log("total : ",vehiclePaths.length)
-
+    console.log("total : ", vehiclePaths.length);
 
     if (!vehiclePaths.length) {
-      console.log("No data found for the given trip details")
-      return res.status(404).json({ message: "No data found for the given trip details" });
+      console.log("No data found for the given trip details");
+      return res
+        .status(404)
+        .json({ message: "No data found for the given trip details" });
     }
 
-    // return res.status(200).json(vehiclePaths);
+    return res.status(200).json(vehiclePaths);
   } catch (error) {
     console.error("Error processing trip details:", error.message);
     return res
