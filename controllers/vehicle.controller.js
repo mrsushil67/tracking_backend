@@ -477,16 +477,16 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
       return res.status(400).json({ message: "Invalid date format" });
     }
 
-    const timeDifference = endDate - startDate; // Difference in milliseconds
-    const oneDayMs = 24 * 60 * 60 * 1000;
+    const isSameDay =
+      startDate.toDateString() === endDate.toDateString();
 
     let queryStart = startDate;
     let queryEnd = endDate;
 
-    // If the trip is longer than 24 hours, extend the query range
-    if (timeDifference > oneDayMs) {
-      queryStart = new Date(startDate.getTime() - oneDayMs);
-      queryEnd = new Date(endDate.getTime() + 2 * oneDayMs);
+    // If the trip is not on the same day, extend the query range
+    if (!isSameDay) {
+      queryStart = new Date(startDate.getTime() - 24 * 60 * 60 * 1000); // One day before
+      queryEnd = new Date(endDate.getTime() + 2 * 24 * 60 * 60 * 1000); // two day after
     }
 
     console.log("Query Start:", queryStart.toISOString());
