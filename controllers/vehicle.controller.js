@@ -560,13 +560,8 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
           stopCount++;
         }
 
-        // Check if stop duration exceeds 10 minutes or 60 documents
-        if (
-          stopCount >= 60 ||
-          (i > 0 &&
-            new Date(point.createdAt) - new Date(stopStart.createdAt) >=
-              10 * 60 * 1000)
-        ) {
+        // Check if stop duration exceeds 60 documents
+        if (stopCount >= 60) {
           const lastStop = stops[stops.length - 1];
           if (
             !lastStop ||
@@ -587,7 +582,17 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
           stopStart = null;
           stopCount = 0;
         }
-      } else {
+      } else if (stopStart) {
+        // If speed is not "0" and we were tracking a stop, finalize the stop
+        stops.push({
+          lat: stopStart.latitude,
+          long: stopStart.longitude,
+          startTime: stopStart.createdAt,
+          endTime: point.createdAt,
+          duration: Math.round(
+            (new Date(point.createdAt) - new Date(stopStart.createdAt)) / 1000
+          ), // Duration in seconds
+        });
         stopStart = null;
         stopCount = 0;
       }
