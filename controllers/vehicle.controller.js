@@ -531,9 +531,6 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
         )
       );
 
-    console.log("startIndex : ", startIndex);
-    console.log("endIndex : ", endIndex);
-
     if (startIndex === -1 || endIndex === -1) {
       return res.status(404).json({
         message:
@@ -545,65 +542,68 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
 
     const fullTrip = vehiclePaths.slice(startIndex, endIndex + 1);
 
-    // Find stops
-    const stops = [];
-    let stopStart = null;
-    let stopCount = 0;
+    // Find stopped points
+    const stoppedPoints = [];
+    let currentStop = null;
 
     for (let i = 0; i < fullTrip.length; i++) {
       const point = fullTrip[i];
-      if (point.speed === "0") {
-        if (!stopStart) {
-          stopStart = point;
-          stopCount = 1;
-        } else {
-          stopCount++;
-        }
+      const prevPoint = i > 0 ? fullTrip[i - 1] : null;
 
-        // Check if stop duration exceeds 60 documents
-        if (stopCount >= 60) {
-          const lastStop = stops[stops.length - 1];
-          if (
-            !lastStop ||
-            lastStop.lat !== stopStart.latitude ||
-            lastStop.long !== stopStart.longitude
-          ) {
-            stops.push({
-              lat: stopStart.latitude,
-              long: stopStart.longitude,
-              startTime: stopStart.createdAt,
-              endTime: point.createdAt,
-              duration: Math.round(
-                (new Date(point.createdAt) - new Date(stopStart.createdAt)) /
-                  1000
-              ), // Duration in seconds
-            });
-          }
-          stopStart = null;
-          stopCount = 0;
+      if (
+        point.speed === "0" &&
+        prevPoint &&
+        point.latitude === prevPoint.latitude &&
+        point.longitude === prevPoint.longitude
+      ) {
+        if (!currentStop) {
+          currentStop = {
+            startTime: point.createdAt,
+            lat: point.latitude,
+            long: point.longitude,
+          };
         }
-      } else if (stopStart) {
-        // If speed is not "0" and we were tracking a stop, finalize the stop
-        stops.push({
-          lat: stopStart.latitude,
-          long: stopStart.longitude,
-          startTime: stopStart.createdAt,
-          endTime: point.createdAt,
-          duration: Math.round(
-            (new Date(point.createdAt) - new Date(stopStart.createdAt)) / 1000
-          ), // Duration in seconds
-        });
-        stopStart = null;
-        stopCount = 0;
+      } else if (currentStop) {
+        currentStop.endTime = prevPoint.createdAt;
+        currentStop.duration = moment
+          .duration(moment(currentStop.endTime).diff(moment(currentStop.startTime)))
+          .asSeconds();
+        stoppedPoints.push(currentStop);
+        currentStop = null;
       }
     }
+
+    // If the last point is still part of a stop
+    if (currentStop) {
+      currentStop.endTime = fullTrip[fullTrip.length - 1].createdAt;
+      currentStop.duration = moment
+        .duration(moment(currentStop.endTime).diff(moment(currentStop.startTime)))
+        .asSeconds();
+      stoppedPoints.push(currentStop);
+    }
+
+    const totalStoppedTime = stoppedPoints.reduce(
+      (acc, stop) => acc + stop.duration,
+      0
+    );
 
     return res.status(200).json({
       totalPoints: fullTrip.length,
       fromTime: vehiclePaths[startIndex].createdAt,
       toTime: vehiclePaths[endIndex].createdAt,
       path: fullTrip,
-      stops,
+      stops: stoppedPoints.map((stop) => ({
+        lat: stop.lat,
+        long: stop.long,
+        startTime: stop.startTime,
+        endTime: stop.endTime,
+        duration: `${Math.floor(stop.duration / 3600)}h ${Math.floor(
+          (stop.duration % 3600) / 60
+        )}m ${stop.duration % 60}s`,
+      })),
+      totalStoppedTime: `${Math.floor(totalStoppedTime / 3600)}h ${Math.floor(
+        (totalStoppedTime % 3600) / 60
+      )}m ${totalStoppedTime % 60}s`,
     });
   } catch (error) {
     console.error("Error processing trip details:", error.message);
