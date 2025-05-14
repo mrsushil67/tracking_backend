@@ -439,18 +439,14 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
 
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) ** 2;
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
 
 function isNear(p1, p2, maxMeters = 2000) {
-  return (
-    getDistanceMeters(p1.lat, p1.long, p2.lat, p2.long) <= maxMeters
-  );
+  return getDistanceMeters(p1.lat, p1.long, p2.lat, p2.long) <= maxMeters;
 }
 
 module.exports.getRootDataByTripDetails = async (req, res) => {
@@ -477,16 +473,24 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     const startDate = new Date(jobDept_Date);
     const endDate = new Date(jobArr_Date);
 
+    if (isNaN(startDate) || isNaN(endDate)) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
+
+    const timeDifference = endDate - startDate; // Difference in milliseconds
     const oneDayMs = 24 * 60 * 60 * 1000;
-    const queryStart = new Date(startDate.getTime() - oneDayMs);
-    const queryEnd = new Date(endDate.getTime() + 2 * oneDayMs);
+
+    let queryStart = startDate;
+    let queryEnd = endDate;
+
+    // If the trip is longer than 24 hours, extend the query range
+    if (timeDifference > oneDayMs) {
+      queryStart = new Date(startDate.getTime() - oneDayMs);
+      queryEnd = new Date(endDate.getTime() + 2 * oneDayMs);
+    }
 
     console.log("Query Start:", queryStart.toISOString());
     console.log("Query End:", queryEnd.toISOString());
-
-    if (isNaN(queryStart) || isNaN(queryEnd)) {
-      return res.status(400).json({ message: "Invalid date format" });
-    }
 
     const vehiclePaths = await VehiclePathModel.find({
       vehicleNo,
