@@ -454,9 +454,10 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     const endDate = new Date(jobArr_Date);
 
     const oneDayMs = 24 * 60 * 60 * 1000;
+    const twoDayMs = 2 * 24 * 60 * 60 * 1000;
 
     const queryStart = new Date(startDate.getTime() - oneDayMs);
-    const queryEnd = new Date(endDate.getTime() + oneDayMs);
+    const queryEnd = new Date(endDate.getTime() + twoDayMs);
 
     console.log("Query Start:", queryStart.toISOString());
     console.log("Query End:", queryEnd.toISOString());
