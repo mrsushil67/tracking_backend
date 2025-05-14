@@ -473,24 +473,16 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     const startDate = new Date(jobDept_Date);
     const endDate = new Date(jobArr_Date);
 
-    if (isNaN(startDate) || isNaN(endDate)) {
-      return res.status(400).json({ message: "Invalid date format" });
-    }
-
-    const isSameDay =
-      startDate.toDateString() === endDate.toDateString();
-
-    let queryStart = startDate;
-    let queryEnd = endDate;
-
-    // If the trip is not on the same day, extend the query range
-    if (!isSameDay) {
-      queryStart = new Date(startDate.getTime() - 24 * 60 * 60 * 1000); // One day before
-      queryEnd = new Date(endDate.getTime() + 2 * 24 * 60 * 60 * 1000); // two day after
-    }
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const queryStart = new Date(startDate.getTime() - oneDayMs);
+    const queryEnd = new Date(endDate.getTime() + 2 * oneDayMs);
 
     console.log("Query Start:", queryStart.toISOString());
     console.log("Query End:", queryEnd.toISOString());
+
+    if (isNaN(queryStart) || isNaN(queryEnd)) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
 
     const vehiclePaths = await VehiclePathModel.find({
       vehicleNo,
