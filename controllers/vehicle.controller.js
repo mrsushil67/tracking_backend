@@ -447,7 +447,7 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-function isNear(p1, p2, maxMeters = 1000) {
+function isNear(p1, p2, maxMeters = 2000) {
   return (
     getDistanceMeters(p1.lat, p1.long, p2.lat, p2.long) <= maxMeters
   );
