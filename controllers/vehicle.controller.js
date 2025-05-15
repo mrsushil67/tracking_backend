@@ -474,68 +474,111 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     const endDate = new Date(jobArr_Date);
 
     const oneDayMs = 24 * 60 * 60 * 1000;
-    const queryStart = new Date(startDate.getTime() - 3 * oneDayMs);
-    const queryEnd = new Date(endDate.getTime() + 4 * oneDayMs);
+    let queryStart = new Date(startDate.getTime());
+    let queryEnd = new Date(endDate.getTime());
 
-    console.log("Query Start:", queryStart.toISOString());
-    console.log("Query End:", queryEnd.toISOString());
+    console.log("Initial Query Start:", queryStart.toISOString());
+    console.log("Initial Query End:", queryEnd.toISOString());
 
     if (isNaN(queryStart) || isNaN(queryEnd)) {
       return res.status(400).json({ message: "Invalid date format" });
     }
 
-    const vehiclePaths = await VehiclePathModel.find({
-      vehicleNo,
-      createdAt: {
-        $gte: queryStart,
-        $lte: queryEnd,
-      },
-    }).sort({ createdAt: 1 });
+    let vehiclePaths = [];
+    let startIndex = -1;
+    let endIndex = -1;
 
-    console.log("Total Path Points Found:", vehiclePaths.length);
+    for (let attempt = 0; attempt < 5; attempt++) {
 
-    if (!vehiclePaths.length) {
-      return res
-        .status(404)
-        .json({ message: "No data found for the given trip details" });
-    }
+      console.log("StartIndex : ",startIndex)
+      console.log("endIndex : ",endIndex)
 
-    const src = { lat: parseFloat(source.lat), long: parseFloat(source.long) };
-    const dest = {
-      lat: parseFloat(destination.lat),
-      long: parseFloat(destination.long),
-    };
+      vehiclePaths = await VehiclePathModel.find({
+        vehicleNo,
+        createdAt: {
+          $gte: queryStart,
+          $lte: queryEnd,
+        },
+      }).sort({ createdAt: 1 });
 
-    console.log(src);
-    console.log(dest);
-
-    let startIndex = vehiclePaths.findIndex((v) =>
-      isNear(
-        { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
-        src,
-        2000
-      )
-    );
-
-    let endIndex = [...vehiclePaths]
-      .reverse()
-      .findIndex((v) =>
-        isNear(
-          { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
-          dest,
-          2000
-        )
+      console.log(
+        `Attempt ${attempt + 1}: Total Path Points Found:`,
+        vehiclePaths.length
       );
 
-    if (startIndex === -1 || endIndex === -1) {
+      if (vehiclePaths.length) {
+        const src = {
+          lat: parseFloat(source.lat),
+          long: parseFloat(source.long),
+        };
+        const dest = {
+          lat: parseFloat(destination.lat),
+          long: parseFloat(destination.long),
+        };
+
+        startIndex = vehiclePaths.findIndex((v) =>
+          isNear(
+            { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
+            src,
+            4000
+          )
+        );
+
+        endIndex = [...vehiclePaths]
+          .reverse()
+          .findIndex((v) =>
+            isNear(
+              {
+                lat: v.location.coordinates[1],
+                long: v.location.coordinates[0],
+              },
+              dest,
+              4000
+            )
+          );
+
+        if (startIndex !== -1 && endIndex !== -1) {
+          endIndex = vehiclePaths.length - 1 - endIndex;
+          break;
+        }
+      }
+
+      if (startIndex === -1) {
+        queryStart = new Date(queryStart.getTime() - oneDayMs);
+        console.log(`Adjusting Query Start: ${queryStart.toISOString()}`);
+      }
+
+      if (endIndex === -1) {
+        queryEnd = new Date(queryEnd.getTime() + oneDayMs);
+        console.log(`Adjusting Query End: ${queryEnd.toISOString()}`);
+      }
+    }
+
+    if (startIndex === -1) {
+      console.warn("Fallback: Using first point as start location");
+      startIndex = 0;
+    }
+
+    if (endIndex === -1) {
+      console.warn("Fallback: Using last point as end location");
+      endIndex = vehiclePaths.length - 1;
+    }
+
+    console.log("startIndex : ",startIndex)
+    console.log("endIndex : ",endIndex)
+
+
+    if (
+      startIndex >= vehiclePaths.length ||
+      endIndex >= vehiclePaths.length ||
+      startIndex > endIndex
+    ) {
       return res.status(404).json({
         vehiclePaths,
         message:
-          "Start or end location not found within proximity of provided coordinates",
+          "Unable to resolve trip path: Start or end index invalid after fallback attempt.",
       });
     }
-
-    endIndex = vehiclePaths.length - 1 - endIndex;
 
     const fullTrip = vehiclePaths.slice(startIndex, endIndex + 1);
 
@@ -573,7 +616,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
             startTime: stopStart.createdAt,
             endTime: stopEnd.createdAt,
             duration,
-            address : stopStart.address || "N/A"
+            address: stopStart.address || "N/A",
           });
         }
         stopStart = null;
