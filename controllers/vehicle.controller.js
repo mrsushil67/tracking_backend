@@ -572,6 +572,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
             startTime: stopStart.createdAt,
             endTime: stopEnd.createdAt,
             duration,
+            address : stopStart.address || "N/A"
           });
         }
         stopStart = null;
