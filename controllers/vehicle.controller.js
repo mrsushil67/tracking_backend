@@ -488,7 +488,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     let startIndex = -1;
     let endIndex = -1;
 
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < 6; attempt++) {
 
       console.log("StartIndex : ",startIndex)
       console.log("endIndex : ",endIndex)
@@ -533,7 +533,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
                 long: v.location.coordinates[0],
               },
               dest,
-              4000
+              5000
             )
           );
 
