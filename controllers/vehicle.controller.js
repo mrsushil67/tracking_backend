@@ -445,7 +445,7 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-function isNear(p1, p2, maxMeters = 2000) {
+function isNear(p1, p2, maxMeters) {
   return getDistanceMeters(p1.lat, p1.long, p2.lat, p2.long) <= maxMeters;
 }
 
@@ -474,8 +474,8 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     const endDate = new Date(jobArr_Date);
 
     const oneDayMs = 24 * 60 * 60 * 1000;
-    const queryStart = new Date(startDate.getTime() - oneDayMs);
-    const queryEnd = new Date(endDate.getTime() + 2 * oneDayMs);
+    const queryStart = new Date(startDate.getTime() - 3 * oneDayMs);
+    const queryEnd = new Date(endDate.getTime() + 4 * oneDayMs);
 
     console.log("Query Start:", queryStart.toISOString());
     console.log("Query End:", queryEnd.toISOString());
@@ -513,7 +513,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
       isNear(
         { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
         src,
-        1000
+        2000
       )
     );
 
@@ -523,12 +523,13 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
         isNear(
           { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
           dest,
-          1000
+          2000
         )
       );
 
     if (startIndex === -1 || endIndex === -1) {
       return res.status(404).json({
+        vehiclePaths,
         message:
           "Start or end location not found within proximity of provided coordinates",
       });
