@@ -711,11 +711,11 @@ module.exports.getVehicleCurrentLoc = async (req, res) => {
 
 const DeletePathData = async () => {
   try {
-    const tenDaysAgo = moment().subtract(10, "days").toDate();
+    const tenDaysAgo = moment().subtract(5, "days").toDate();
 
     await VehiclePathModel.deleteMany({
       createdAt: {
-        $lt: tenDaysAgo,
+        $lte: tenDaysAgo,
       },
     });
 
@@ -724,7 +724,7 @@ const DeletePathData = async () => {
     console.error("Error deleting data older than 10 days:", error.message);
   }
 };
-cron.schedule('30 15 * * *', () => {
+cron.schedule('30 16 * * *', () => {
   DeletePathData();
 });
 
