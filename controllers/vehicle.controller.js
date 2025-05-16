@@ -774,7 +774,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     const endDate = new Date(jobArr_Date);
 
     const oneDayMs = 24 * 60 * 60 * 1000;
-    let queryStart = new Date(startDate.getTime()- oneDayMs);
+    let queryStart = new Date(startDate.getTime() - oneDayMs);
     let queryEnd = new Date(endDate.getTime() + oneDayMs);
 
     console.log("Initial Query Start:", queryStart.toISOString());
@@ -794,13 +794,50 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
 
     console.log(`Total Path Points Found:`, vehiclePaths.length);
 
+    if (!vehiclePaths.length) {
+      return res.status(404).json({ message: "No path data found" });
+    }
+
+    const isNear = (point1, point2, threshold = 0.01) => {
+      return (
+        Math.abs(point1.lat - point2.lat) <= threshold &&
+        Math.abs(point1.long - point2.long) <= threshold
+      );
+    };
+
+    const src = { lat: parseFloat(source.lat), long: parseFloat(source.long) };
+    const dest = {
+      lat: parseFloat(destination.lat),
+      long: parseFloat(destination.long),
+    };
+
+    const startIndex = vehiclePaths.findIndex((v) =>
+      isNear(
+        { lat: parseFloat(v.latitude), long: parseFloat(v.longitude) },
+        src
+      )
+    );
+
+    const endIndex = vehiclePaths.findIndex((v) =>
+      isNear(
+        { lat: parseFloat(v.latitude), long: parseFloat(v.longitude) },
+        dest
+      )
+    );
+
+    if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
+      return res.status(404).json({
+        message: "Unable to find a valid path between source and destination",
+      });
+    }
+
+    const actualPath = vehiclePaths.slice(startIndex, endIndex + 1);
+
     return res.status(404).json({
-      total: vehiclePaths.length,
-      vehiclePaths: vehiclePaths,
-      //   fromTime: vehiclePaths[startIndex].createdAt,
-      //   toTime: vehiclePaths[endIndex].createdAt,
-      //   path: fullTrip,
-      //   stops,
+      totalPoints: actualPath.length,
+      fromTime: actualPath[0].createdAt,
+      toTime: actualPath[actualPath.length - 1].createdAt,
+      path: actualPath,
     });
   } catch (error) {
     console.error("Error processing trip details:", error.message);
