@@ -7,7 +7,7 @@ const AllVehiclesModel = require("../models/vehicles.model");
 const moment = require("moment");
 const { sendNotification } = require("../services/notify.service");
 require("dotenv").config();
-const cron = require('node-cron');
+const cron = require("node-cron");
 const NotificationModel = require("../models/notification.model");
 
 module.exports.createVehicles = async (req, res) => {
@@ -432,217 +432,215 @@ module.exports.totalRunningVehicles = async (req, res) => {
   }
 };
 
-function getDistanceMeters(lat1, lon1, lat2, lon2) {
-  const toRad = (x) => (x * Math.PI) / 180;
-  const R = 6371000; // Earth radius in meters
+// function getDistanceMeters(lat1, lon1, lat2, lon2) {
+//   const toRad = (x) => (x * Math.PI) / 180;
+//   const R = 6371000; // Earth radius in meters
 
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
+//   const dLat = toRad(lat2 - lat1);
+//   const dLon = toRad(lon2 - lon1);
 
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+//   const a =
+//     Math.sin(dLat / 2) ** 2 +
+//     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+//   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+//   return R * c;
+// }
 
-function isNear(p1, p2, maxMeters) {
-  return getDistanceMeters(p1.lat, p1.long, p2.lat, p2.long) <= maxMeters;
-}
+// function isNear(p1, p2, maxMeters) {
+//   return getDistanceMeters(p1.lat, p1.long, p2.lat, p2.long) <= maxMeters;
+// }
 
-module.exports.getRootDataByTripDetails = async (req, res) => {
-  try {
-    const { vehicleNo, source, destination, jobDept_Date, jobArr_Date } =
-      req.body;
+// module.exports.getRootDataByTripDetails = async (req, res) => {
+//   try {
+//     const { vehicleNo, source, destination, jobDept_Date, jobArr_Date } =
+//       req.body;
 
-    console.log("Received Body:", req.body);
+//     console.log("Received Body:", req.body);
 
-    if (
-      !vehicleNo ||
-      !source?.lat ||
-      !source?.long ||
-      !destination?.lat ||
-      !destination?.long ||
-      !jobDept_Date ||
-      !jobArr_Date
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Invalid or missing trip details" });
-    }
+//     if (
+//       !vehicleNo ||
+//       !source?.lat ||
+//       !source?.long ||
+//       !destination?.lat ||
+//       !destination?.long ||
+//       !jobDept_Date ||
+//       !jobArr_Date
+//     ) {
+//       return res
+//         .status(400)
+//         .json({ message: "Invalid or missing trip details" });
+//     }
 
-    const startDate = new Date(jobDept_Date);
-    const endDate = new Date(jobArr_Date);
+//     const startDate = new Date(jobDept_Date);
+//     const endDate = new Date(jobArr_Date);
 
-    const oneDayMs = 24 * 60 * 60 * 1000;
-    let queryStart = new Date(startDate.getTime());
-    let queryEnd = new Date(endDate.getTime());
+//     const oneDayMs = 24 * 60 * 60 * 1000;
+//     let queryStart = new Date(startDate.getTime());
+//     let queryEnd = new Date(endDate.getTime());
 
-    console.log("Initial Query Start:", queryStart.toISOString());
-    console.log("Initial Query End:", queryEnd.toISOString());
+//     console.log("Initial Query Start:", queryStart.toISOString());
+//     console.log("Initial Query End:", queryEnd.toISOString());
 
-    if (isNaN(queryStart) || isNaN(queryEnd)) {
-      return res.status(400).json({ message: "Invalid date format" });
-    }
+//     if (isNaN(queryStart) || isNaN(queryEnd)) {
+//       return res.status(400).json({ message: "Invalid date format" });
+//     }
 
-    let vehiclePaths = [];
-    let startIndex = -1;
-    let endIndex = -1;
+//     let vehiclePaths = [];
+//     let startIndex = -1;
+//     let endIndex = -1;
 
-    for (let attempt = 0; attempt < 6; attempt++) {
+//     for (let attempt = 0; attempt < 6; attempt++) {
 
-      console.log("StartIndex : ",startIndex)
-      console.log("endIndex : ",endIndex)
+//       console.log("StartIndex : ",startIndex)
+//       console.log("endIndex : ",endIndex)
 
-      vehiclePaths = await VehiclePathModel.find({
-        vehicleNo,
-        createdAt: {
-          $gte: queryStart,
-          $lte: queryEnd,
-        },
-      }).sort({ createdAt: 1 });
+//       vehiclePaths = await VehiclePathModel.find({
+//         vehicleNo,
+//         createdAt: {
+//           $gte: queryStart,
+//           $lte: queryEnd,
+//         },
+//       }).sort({ createdAt: 1 });
 
-      console.log(
-        `Attempt ${attempt + 1}: Total Path Points Found:`,
-        vehiclePaths.length
-      );
+//       console.log(
+//         `Attempt ${attempt + 1}: Total Path Points Found:`,
+//         vehiclePaths.length
+//       );
 
-      if (vehiclePaths.length) {
-        const src = {
-          lat: parseFloat(source.lat),
-          long: parseFloat(source.long),
-        };
-        const dest = {
-          lat: parseFloat(destination.lat),
-          long: parseFloat(destination.long),
-        };
+//       if (vehiclePaths.length) {
+//         const src = {
+//           lat: parseFloat(source.lat),
+//           long: parseFloat(source.long),
+//         };
+//         const dest = {
+//           lat: parseFloat(destination.lat),
+//           long: parseFloat(destination.long),
+//         };
 
-        startIndex = vehiclePaths.findIndex((v) =>
-          isNear(
-            { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
-            src,
-            4000
-          )
-        );
+//         startIndex = vehiclePaths.findIndex((v) =>
+//           isNear(
+//             { lat: v.location.coordinates[1], long: v.location.coordinates[0] },
+//             src,
+//             4000
+//           )
+//         );
 
-        endIndex = [...vehiclePaths]
-          .reverse()
-          .findIndex((v) =>
-            isNear(
-              {
-                lat: v.location.coordinates[1],
-                long: v.location.coordinates[0],
-              },
-              dest,
-              5000
-            )
-          );
+//         endIndex = [...vehiclePaths]
+//           .reverse()
+//           .findIndex((v) =>
+//             isNear(
+//               {
+//                 lat: v.location.coordinates[1],
+//                 long: v.location.coordinates[0],
+//               },
+//               dest,
+//               5000
+//             )
+//           );
 
-        if (startIndex !== -1 && endIndex !== -1) {
-          endIndex = vehiclePaths.length - 1 - endIndex;
-          break;
-        }
-      }
+//         if (startIndex !== -1 && endIndex !== -1) {
+//           endIndex = vehiclePaths.length - 1 - endIndex;
+//           break;
+//         }
+//       }
 
-      if (startIndex === -1) {
-        queryStart = new Date(queryStart.getTime() - oneDayMs);
-        console.log(`Adjusting Query Start: ${queryStart.toISOString()}`);
-      }
+//       if (startIndex === -1) {
+//         queryStart = new Date(queryStart.getTime() - oneDayMs);
+//         console.log(`Adjusting Query Start: ${queryStart.toISOString()}`);
+//       }
 
-      if (endIndex === -1) {
-        queryEnd = new Date(queryEnd.getTime() + oneDayMs);
-        console.log(`Adjusting Query End: ${queryEnd.toISOString()}`);
-      }
-    }
+//       if (endIndex === -1) {
+//         queryEnd = new Date(queryEnd.getTime() + oneDayMs);
+//         console.log(`Adjusting Query End: ${queryEnd.toISOString()}`);
+//       }
+//     }
 
-    if (startIndex === -1) {
-      console.warn("Fallback: Using first point as start location");
-      startIndex = 0;
-    }
+//     if (startIndex === -1) {
+//       console.warn("Fallback: Using first point as start location");
+//       startIndex = 0;
+//     }
 
-    if (endIndex === -1) {
-      console.warn("Fallback: Using last point as end location");
-      endIndex = vehiclePaths.length - 1;
-    }
+//     if (endIndex === -1) {
+//       console.warn("Fallback: Using last point as end location");
+//       endIndex = vehiclePaths.length - 1;
+//     }
 
-    console.log("startIndex : ",startIndex)
-    console.log("endIndex : ",endIndex)
+//     console.log("startIndex : ",startIndex)
+//     console.log("endIndex : ",endIndex)
 
+//     if (
+//       startIndex >= vehiclePaths.length ||
+//       endIndex >= vehiclePaths.length ||
+//       startIndex > endIndex
+//     ) {
+//       return res.status(404).json({
+//         vehiclePaths,
+//         message:
+//           "Unable to resolve trip path: Start or end index invalid after fallback attempt.",
+//       });
+//     }
 
-    if (
-      startIndex >= vehiclePaths.length ||
-      endIndex >= vehiclePaths.length ||
-      startIndex > endIndex
-    ) {
-      return res.status(404).json({
-        vehiclePaths,
-        message:
-          "Unable to resolve trip path: Start or end index invalid after fallback attempt.",
-      });
-    }
+//     const fullTrip = vehiclePaths.slice(startIndex, endIndex + 1);
 
-    const fullTrip = vehiclePaths.slice(startIndex, endIndex + 1);
+//     // Find stops
+//     const stops = [];
+//     let stopStart = null;
+//     let stopEnd = null;
+//     let stopCount = 0;
 
-    // Find stops
-    const stops = [];
-    let stopStart = null;
-    let stopEnd = null;
-    let stopCount = 0;
+//     for (let i = 0; i < fullTrip.length; i++) {
+//       const current = fullTrip[i];
+//       const next = fullTrip[i + 1];
 
-    for (let i = 0; i < fullTrip.length; i++) {
-      const current = fullTrip[i];
-      const next = fullTrip[i + 1];
+//       if (current.speed === "0") {
+//         if (!stopStart) {
+//           stopStart = current;
+//         }
+//         stopCount++;
+//       } else {
+//         if (stopStart && stopCount > 60) {
+//           stopEnd = current;
+//           const durationMs =
+//             new Date(stopEnd.createdAt) - new Date(stopStart.createdAt);
+//           const duration = {
+//             hours: Math.floor(durationMs / (1000 * 60 * 60)),
+//             minutes: Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60)),
+//             seconds: Math.floor((durationMs % (1000 * 60)) / 1000),
+//           };
 
-      if (current.speed === "0") {
-        if (!stopStart) {
-          stopStart = current;
-        }
-        stopCount++;
-      } else {
-        if (stopStart && stopCount > 60) {
-          stopEnd = current;
-          const durationMs =
-            new Date(stopEnd.createdAt) - new Date(stopStart.createdAt);
-          const duration = {
-            hours: Math.floor(durationMs / (1000 * 60 * 60)),
-            minutes: Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60)),
-            seconds: Math.floor((durationMs % (1000 * 60)) / 1000),
-          };
+//           stops.push({
+//             location: {
+//               lat: stopStart.location.coordinates[1],
+//               long: stopStart.location.coordinates[0],
+//             },
+//             startTime: stopStart.createdAt,
+//             endTime: stopEnd.createdAt,
+//             duration,
+//             address: stopStart.address || "N/A",
+//           });
+//         }
+//         stopStart = null;
+//         stopCount = 0;
+//       }
+//     }
 
-          stops.push({
-            location: {
-              lat: stopStart.location.coordinates[1],
-              long: stopStart.location.coordinates[0],
-            },
-            startTime: stopStart.createdAt,
-            endTime: stopEnd.createdAt,
-            duration,
-            address: stopStart.address || "N/A",
-          });
-        }
-        stopStart = null;
-        stopCount = 0;
-      }
-    }
+//     return res.status(200).json({
+//       totalPoints: fullTrip.length,
+//       fromTime: vehiclePaths[startIndex].createdAt,
+//       toTime: vehiclePaths[endIndex].createdAt,
+//       path: fullTrip,
+//       stops,
+//     });
+//   } catch (error) {
+//     console.error("Error processing trip details:", error.message);
+//     return res.status(500).json({
+//       message: "Internal Server Error",
+//       error: error.message,
+//     });
+//   }
+// };
 
-    return res.status(200).json({
-      totalPoints: fullTrip.length,
-      fromTime: vehiclePaths[startIndex].createdAt,
-      toTime: vehiclePaths[endIndex].createdAt,
-      path: fullTrip,
-      stops,
-    });
-  } catch (error) {
-    console.error("Error processing trip details:", error.message);
-    return res.status(500).json({
-      message: "Internal Server Error",
-      error: error.message,
-    });
-  }
-};
-
-// get address, Distanse, km, time road
 async function getRoadDistance(lat1, lon1, lat2, lon2) {
   const apiKey = process.env.MAP_API_KEY; // Replace with your key
   const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${lat1},${lon1}&destination=${lat2},${lon2}&key=${apiKey}`;
@@ -714,7 +712,7 @@ const DeletePathData = async () => {
   try {
     const tenDaysAgo = moment().subtract(5, "days").toDate();
 
-    console.log(tenDaysAgo)
+    console.log(tenDaysAgo);
     await VehiclePathModel.deleteMany({
       createdAt: {
         $lte: tenDaysAgo,
@@ -743,10 +741,72 @@ const DeleteNotification = async () => {
   }
 };
 
-cron.schedule('0 2 * * *', () => {
+cron.schedule("0 2 * * *", () => {
   DeletePathData();
 });
 
-cron.schedule('0 3 * * *', () => {
+cron.schedule("0 3 * * *", () => {
   DeleteNotification();
 });
+
+module.exports.getRootDataByTripDetails = async (req, res) => {
+  try {
+    const { vehicleNo, source, destination, jobDept_Date, jobArr_Date } =
+      req.body;
+
+    console.log("Received Body:", req.body);
+
+    if (
+      !vehicleNo ||
+      !source?.lat ||
+      !source?.long ||
+      !destination?.lat ||
+      !destination?.long ||
+      !jobDept_Date ||
+      !jobArr_Date
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Invalid or missing trip details" });
+    }
+
+    const startDate = new Date(jobDept_Date);
+    const endDate = new Date(jobArr_Date);
+
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    let queryStart = new Date(startDate.getTime()- oneDayMs);
+    let queryEnd = new Date(endDate.getTime() + oneDayMs);
+
+    console.log("Initial Query Start:", queryStart.toISOString());
+    console.log("Initial Query End:", queryEnd.toISOString());
+
+    if (isNaN(queryStart) || isNaN(queryEnd)) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
+
+    const vehiclePaths = await VehiclePathModel.find({
+      vehicleNo,
+      createdAt: {
+        $gte: queryStart,
+        $lte: queryEnd,
+      },
+    }).sort({ createdAt: 1 });
+
+    console.log(`Total Path Points Found:`, vehiclePaths.length);
+
+    return res.status(404).json({
+      total: vehiclePaths.length,
+      vehiclePaths: vehiclePaths,
+      //   fromTime: vehiclePaths[startIndex].createdAt,
+      //   toTime: vehiclePaths[endIndex].createdAt,
+      //   path: fullTrip,
+      //   stops,
+    });
+  } catch (error) {
+    console.error("Error processing trip details:", error.message);
+    return res.status(500).json({
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
