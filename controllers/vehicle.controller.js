@@ -8,6 +8,7 @@ const moment = require("moment");
 const { sendNotification } = require("../services/notify.service");
 require("dotenv").config();
 const cron = require('node-cron');
+const NotificationModel = require("../models/notification.model");
 
 module.exports.createVehicles = async (req, res) => {
   try {
@@ -713,18 +714,39 @@ const DeletePathData = async () => {
   try {
     const tenDaysAgo = moment().subtract(5, "days").toDate();
 
+    console.log(tenDaysAgo)
     await VehiclePathModel.deleteMany({
       createdAt: {
         $lte: tenDaysAgo,
       },
     });
 
-    console.log("Data older than 10 days deleted successfully.");
+    console.log("Data older than 5 days deleted successfully.");
   } catch (error) {
-    console.error("Error deleting data older than 10 days:", error.message);
+    console.error("Error deleting data older than 5 days:", error.message);
   }
 };
-cron.schedule('30 16 * * *', () => {
+
+const DeleteNotification = async () => {
+  try {
+    const twoDaysAgo = moment().subtract(2, "days").toDate();
+
+    await NotificationModel.deleteMany({
+      createdAt: {
+        $lte: twoDaysAgo,
+      },
+    });
+
+    console.log("Data older than 2 days deleted successfully.");
+  } catch (error) {
+    console.error("Error deleting data older than 2 days:", error.message);
+  }
+};
+
+cron.schedule('0 2 * * *', () => {
   DeletePathData();
 });
 
+cron.schedule('0 3 * * *', () => {
+  DeleteNotification();
+});
