@@ -7,6 +7,7 @@ const AllVehiclesModel = require("../models/vehicles.model");
 const moment = require("moment");
 const { sendNotification } = require("../services/notify.service");
 require("dotenv").config();
+const cron = require('node-cron');
 
 module.exports.createVehicles = async (req, res) => {
   try {
@@ -707,3 +708,23 @@ module.exports.getVehicleCurrentLoc = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+const DeletePathData = async () => {
+  try {
+    const tenDaysAgo = moment().subtract(10, "days").toDate();
+
+    await VehiclePathModel.deleteMany({
+      createdAt: {
+        $lt: tenDaysAgo,
+      },
+    });
+
+    console.log("Data older than 10 days deleted successfully.");
+  } catch (error) {
+    console.error("Error deleting data older than 10 days:", error.message);
+  }
+};
+cron.schedule('30 15 * * *', () => {
+  DeletePathData();
+});
+
