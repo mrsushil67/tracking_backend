@@ -469,7 +469,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     ) {
       return res
         .status(400)
-        .json({ message: "Invalid or missing trip details" });
+        .json({status:400, message: "Invalid or missing trip details" });
     }
 
     const startDate = new Date(jobDept_Date);
@@ -483,7 +483,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     console.log("Initial Query End:", queryEnd.toISOString());
 
     if (isNaN(queryStart) || isNaN(queryEnd)) {
-      return res.status(400).json({ message: "Invalid date format" });
+      return res.status(400).json({status:400, message: "Invalid date format" });
     }
 
     let vehiclePaths = [];
@@ -575,9 +575,10 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
       startIndex > endIndex
     ) {
       return res.status(404).json({
+        status:404,
         vehiclePaths,
         message:
-          "Unable to resolve trip path: Start or end index invalid after fallback attempt.",
+          "Unable to resolve trip path: Source or Destination Coords are out of our radius.",
       });
     }
 
