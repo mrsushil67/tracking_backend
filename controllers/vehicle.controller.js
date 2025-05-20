@@ -469,7 +469,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     ) {
       return res
         .status(400)
-        .json({status:400, message: "Invalid or missing trip details" });
+        .json({ status: 400, message: "Invalid or missing trip details" });
     }
 
     const startDate = new Date(jobDept_Date);
@@ -483,7 +483,9 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     console.log("Initial Query End:", queryEnd.toISOString());
 
     if (isNaN(queryStart) || isNaN(queryEnd)) {
-      return res.status(400).json({status:400, message: "Invalid date format" });
+      return res
+        .status(400)
+        .json({ status: 400, message: "Invalid date format" });
     }
 
     let vehiclePaths = [];
@@ -491,9 +493,8 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     let endIndex = -1;
 
     for (let attempt = 0; attempt < 6; attempt++) {
-
-      console.log("StartIndex : ",startIndex)
-      console.log("endIndex : ",endIndex)
+      console.log("StartIndex : ", startIndex);
+      console.log("endIndex : ", endIndex);
 
       vehiclePaths = await VehiclePathModel.find({
         vehicleNo,
@@ -526,18 +527,16 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
           )
         );
 
-        endIndex = [...vehiclePaths]
-          .reverse()
-          .findIndex((v) =>
-            isNear(
-              {
-                lat: v.location.coordinates[1],
-                long: v.location.coordinates[0],
-              },
-              dest,
-              5000
-            )
-          );
+        endIndex = [...vehiclePaths].reverse().findIndex((v) =>
+          isNear(
+            {
+              lat: v.location.coordinates[1],
+              long: v.location.coordinates[0],
+            },
+            dest,
+            5000
+          )
+        );
 
         if (startIndex !== -1 && endIndex !== -1) {
           endIndex = vehiclePaths.length - 1 - endIndex;
@@ -566,8 +565,8 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
       endIndex = vehiclePaths.length - 1;
     }
 
-    console.log("startIndex : ",startIndex)
-    console.log("endIndex : ",endIndex)
+    console.log("startIndex : ", startIndex);
+    console.log("endIndex : ", endIndex);
 
     if (
       startIndex >= vehiclePaths.length ||
@@ -575,7 +574,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
       startIndex > endIndex
     ) {
       return res.status(404).json({
-        status:404,
+        status: 404,
         vehiclePaths,
         message:
           "Unable to resolve trip path: Source or Destination Coords are out of our radius.",
@@ -749,6 +748,65 @@ cron.schedule("0 2 * * *", () => {
 cron.schedule("0 3 * * *", () => {
   DeleteNotification();
 });
+
+const getVehicleStatuses = async (req, res) => {
+  try {
+    const vehicles = await AllVehiclesModel.find({});
+
+    if (!vehicles || vehicles.length === 0) {
+      return res.status(404).json({ message: "No vehicles found" });
+    }
+
+    const vehicleStatuses = [];
+    let runningCount = 0;
+    let idleCount = 0;
+    let stoppedCount = 0;
+
+    for (const vehicle of vehicles) {
+      const vehiclePaths = await VehiclePathModel.find({
+        vehicleNo: vehicle.vehicleNo,
+      })
+        .limit(60)
+        .sort({ createdAt: -1 });
+
+      const isRunning = vehiclePaths.some((path) => path.speed > 0);
+      const isIdle =
+        vehiclePaths.some((path) => path.speed > 0 && path.speed < 2);
+      const isStopped =
+        vehiclePaths.slice(0, 60).every((path) => path.speed === "0");
+
+      if (isRunning) runningCount++;
+      if (isIdle) idleCount++;
+      if (isStopped) stoppedCount++;
+
+      vehicleStatuses.push({
+        vehicleNo: vehicle.vehicleNo,
+        RUNNING: isRunning ? 1 : 0,
+        IDLE: isIdle ? 1 : 0,
+        STOP: isStopped ? 1 : 0,
+      });
+    }
+
+    console.log("vehicleStatuses : ", runningCount, idleCount, stoppedCount);
+    // console.log("vehicleStatuses : ", vehicleStatuses);
+
+    // return res.status(200).json({
+    //   totalVehicles: vehicles.length,
+    //   runningCount,
+    //   idleCount,
+    //   stoppedCount,
+    //   vehicleStatuses,
+    // });
+  } catch (error) {
+    console.error("Error fetching vehicle statuses:", error.message);
+    return res.status(500).json({
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
+// getVehicleStatuses()
 
 // module.exports.getRootDataByTripDetails = async (req, res) => {
 //   try {
