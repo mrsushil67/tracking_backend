@@ -727,7 +727,7 @@ const DeletePathData = async () => {
 
 const DeleteNotification = async () => {
   try {
-    const twoDaysAgo = moment().subtract(2, "days").toDate();
+    const twoDaysAgo = moment().subtract(1, "days").toDate();
 
     await NotificationModel.deleteMany({
       createdAt: {
