@@ -886,6 +886,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
           spherical: true,
           query: {
             vehicleNo,
+            speed: "0",
             createdAt: { $gte: new Date(startDatebefore), $lte: new Date(startDateSAfter) },
           },
         },
@@ -904,6 +905,7 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
           spherical: true,
           query: {
             vehicleNo,
+            speed: "0",
             createdAt: { $gte: new Date(endDateBefore), $lte: new Date(endDateAfter) },
           },
         },
