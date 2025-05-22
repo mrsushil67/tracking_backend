@@ -856,12 +856,22 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const startDate = new Date(jobDept_Date);
-    const endDate = new Date(jobArr_Date);
+    const startDatebefore = moment(jobDept_Date).subtract(24, "h").toDate();
+    const startDateSAfter = moment(jobDept_Date).add(24, "h").toDate();
 
-    if (isNaN(startDate) || isNaN(endDate)) {
+    const endDateBefore = moment(jobArr_Date).subtract(24, "h").toDate();
+    const endDateAfter = moment(jobArr_Date).add(24, "h").toDate();
+
+    console.log("Start Date:", new Date(startDatebefore));
+    console.log("End Date:", new Date(startDateSAfter));
+    console.log("Start Date:", new Date(endDateBefore));
+    console.log("End Date:", new Date(endDateAfter));
+
+    if (isNaN(startDatebefore) || isNaN(endDateBefore)) {
       return res.status(400).json({ message: "Invalid date format" });
     }
+
+   
 
     const SourceCoords = await VehiclePathModel.aggregate([
       {
@@ -872,11 +882,11 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
           },
           distanceField: "dist.calculated",
           spherical: true,
-          maxDistance: 5000, // 5 km
+          maxDistance: 5000,
           spherical: true,
           query: {
             vehicleNo,
-            createdAt: { $gte: startDate },
+            createdAt: { $gte: new Date(startDatebefore), $lte: new Date(startDateSAfter) },
           },
         },
       },
@@ -890,15 +900,16 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
           },
           distanceField: "dist.calculated",
           spherical: true,
-          maxDistance: 5000, // 5 km
+          maxDistance: 5000,
           spherical: true,
           query: {
             vehicleNo,
-            createdAt: { $lte: endDate },
+            createdAt: { $gte: new Date(endDateBefore), $lte: new Date(endDateAfter) },
           },
         },
       },
     ]);
+
     // console.log("SourceCoords : ", SourceCoords[0]);
     // console.log("DestCoords : ", DestCoords[0]);
 
@@ -911,12 +922,9 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
     const sourceTime = new Date(SourceCoords[0].createdAt);
     const destTime = new Date(DestCoords[0].createdAt);
     
-    const fromDate = new Date(Math.min(sourceTime, destTime));
-    const toDate = new Date(Math.max(sourceTime, destTime));
-    
     const exactPath = await VehiclePathModel.find({
       vehicleNo,
-      createdAt: { $gte: fromDate, $lte: toDate },
+      createdAt: { $gte: sourceTime, $lte: destTime },
     }).sort({ createdAt: 1 });
 
     if (!exactPath.length) {
@@ -928,15 +936,61 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
 
     console.log("exactPath : ", exactPath[0], exactPath[exactPath.length - 1]);
     
+    const fullTrip = exactPath;
 
-    // return res.status(200).json({
-    //   message: "Path fetched successfully",
-    //   // path,
-    // });
+    // Find stops
+    const stops = [];
+    let stopStart = null;
+    let stopEnd = null;
+    let stopCount = 0;
+
+    for (let i = 0; i < fullTrip.length; i++) {
+      const current = fullTrip[i];
+      const next = fullTrip[i + 1];
+
+      if (current.speed === "0") {
+        if (!stopStart) {
+          stopStart = current;
+        }
+        stopCount++;
+      } else {
+        if (stopStart && stopCount > 60) {
+          stopEnd = current;
+          const durationMs =
+            new Date(stopEnd.createdAt) - new Date(stopStart.createdAt);
+          const duration = {
+            hours: Math.floor(durationMs / (1000 * 60 * 60)),
+            minutes: Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60)),
+            seconds: Math.floor((durationMs % (1000 * 60)) / 1000),
+          };
+
+          stops.push({
+            location: {
+              lat: stopStart.location.coordinates[1],
+              long: stopStart.location.coordinates[0],
+            },
+            startTime: stopStart.createdAt,
+            endTime: stopEnd.createdAt,
+            duration,
+            address: stopStart.address || "N/A",
+          });
+        }
+        stopStart = null;
+        stopCount = 0;
+      }
+    }
+
+    return res.status(200).json({
+      totalPoints: fullTrip.length,
+      fromTime: exactPath[0].createdAt,
+      toTime: exactPath[exactPath.length - 1].createdAt,
+      path: fullTrip,
+      stops,
+    });
   } catch (error) {
     console.error("Error processing trip details:", error.message);
     return res.status(500).json({
-      message: "Internal Server Error",
+      message: error.message,
       error: error.message,
     });
   }
