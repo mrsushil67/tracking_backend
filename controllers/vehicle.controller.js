@@ -919,6 +919,10 @@ module.exports.getRootDataByTripDetails = async (req, res) => {
       console.log("Source or destination coordinates not found within range");
       return res.status(404).json({
         message: "Source or destination coordinates not found within range",
+        values: {
+          source: SourceCoords.length,
+          destination: DestCoords.length,
+        },
       });
     }
     const sourceTime = new Date(SourceCoords[0].createdAt);
