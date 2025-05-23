@@ -45,12 +45,12 @@ module.exports.createJob = async (req, res) => {
         TripType,
         VehicleId,
         Driver1Id,
-        VPlaceTime,
-        DepartureTime,
+        VPlaceTime: new Date(VPlaceTime),
+        DepartureTime: new Date(DepartureTime),
         Remark,
         TripSheet,
         CreatedBy,
-        CreatedTime,
+        CreatedTime: new Date(CreatedTime),
         Status,
         Is_Amended,
         AmendReason,
@@ -64,6 +64,8 @@ module.exports.createJob = async (req, res) => {
         BrId,
         Is_peak,
     });
+
+    console.log("New Job Details:", newJob);
     const savedJob = await newJob.save();
     res.status(201).json({status: true, savedJob, message: "Job created successfully" });
   } catch (error) {
