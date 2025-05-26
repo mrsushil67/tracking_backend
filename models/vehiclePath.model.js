@@ -40,9 +40,8 @@ const VehiclePathSchema = new mongoose.Schema(
 
 
 // Create a 2dsphere index on the location field
-VehiclePathSchema.index({ location: '2dsphere' });
-
-VehiclePathSchema.index({ createdAt: 1 }, { expireAfterSeconds: 1296000 });
+// VehiclePathSchema.index({ location: '2dsphere' });
+// VehiclePathSchema.index({ createdAt: 1 }, { expireAfterSeconds: 1296000 });
 
 const VehiclePathModel = mongoose.model("vehiclePath", VehiclePathSchema);
 
