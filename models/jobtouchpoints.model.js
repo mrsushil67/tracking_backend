@@ -6,13 +6,55 @@ const jobTouchpointsSchema = new mongoose.Schema({
     ref: 'JobDetails',
     required: true,
   },
-  touchpoint: {
-    type: String,
+  Id: {
+    type: Number,
     required: true,
   },
-  timestamp: {
-    type: Date,
-    default: Date.now,
+  TouchPoint: {
+    type: String,
+    required: false,
+  },
+  TouchCoords: {
+    lat: {
+      type: String,
+      required: false,
+    },
+    long: {
+      type: String,
+      required: false,
+    },
+  },
+  SchDept:{
+    type: String,
+    required: false,
+  },
+  SchArr:{
+    type: String,
+    required: false, 
+  },
+  InDate: {
+    type: String,
+    required: false,
+  },
+  OutDate: {
+    type: String,
+    required: false,
+  },
+  InTime: {
+    type: String,
+    required: false,
+  },
+  OutTime: {
+    type: String,
+    required: false,
+  },
+  TripType: {
+    type: Number,
+    required: false,
+  },
+  crossed: {
+    type: Boolean,
+    default: false,
   },
 });
 

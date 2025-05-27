@@ -1,142 +1,92 @@
 const mongoose = require("mongoose");
 
-const jobDetailsSchema = new mongoose.Schema(
-  {
-    ID: {
-      type: Number,
-      required: true,
-      unique: true,
-      trim: true,
-    },
-    CustId: {
-      type: Number,
-      required: true,
-      trim: true,
-    },
-    RouteId: {
-      type: Number,
-      required: true,
-      trim: true,
-    },
-    TripType: {
-      type: Number,
-      required: true,
-      trim: true,
-    },
-    VehicleId: {
-      type: Number,
-      required: true,
-      trim: true,
-    },
-    Driver1Id: {
-      type: Number,
-      required: true,
-      trim: true,
-    },
-    Driver2Id: {
-      type: Number,
-      trim: true,
-      default: null,
-    },
-    VPlaceTime: {
-      type: Date,
-      required: true,
-      trim: true,
-    },
-    DepartureTime: {
-      type: Date,
-      trim: true,
-      default: null,
-    },
-    Remark: {
+const jobDetailsSchema = new mongoose.Schema({
+  Id: {
+    type: Number,
+    required: true,
+    unique: true,
+  },
+  TripSheet: {
+    type: String,
+    required: false,
+  },
+  RouteId: {
+    type: Number,
+    required: false,
+  },
+  VehicleNo: {
+    type: String,
+    required: false,
+  },
+  CustomerName: {
+    type: String,
+    required: false,
+  },
+  SourceCity: {
+    type: String,
+    required: false,
+  },
+  SourceCoords: {
+    lat: {
       type: String,
-      trim: true,
+      required: false,
     },
-    TripSheet: {
+    long: {
       type: String,
-      trim: true,
-    },
-    CreatedBy: {
-      type: Number,
-      required: true,
-      trim: true,
-    },
-    CreatedTime: {
-      type: Date,
-      required: true,
-      trim: true,
-      default: Date.now,
-    },
-    Status: {
-      type: Number,
-      required: true,
-      trim: true,
-      default: 0,
-    },
-    Is_Amended: {
-      type: Number,
-      required: true,
-      trim: true,
-      default: 0,
-    },
-    AmendReason: {
-      type: Number,
-      required: true,
-      trim: true,
-      default: 0,   
-    },
-    ParentTripNo: {
-      type: String,
-      required: true,
-      trim: true,
-      default: null,
-    },
-    BookingType: {
-      type: Number,
-      trim: true,
-      default:null,
-    },
-    PlanCat: {
-      type: Number,
-      required: true,
-      trim: true,
-      default: 0,
-    },
-    Is_Completed: {
-      type: Number,
-      required: true,
-      trim: true,
-      default: 0,
-    },
-    Is_Settled: {
-      type: Number,
-      trim: true,
-      default: null,
-    },
-    Is_Verified: {
-      type: Number,
-      required: true,
-      trim: true,
-        default: 0, 
-    },
-    Tcat: {
-      type: Number,
-      trim: true,
-      default: null
-    },
-    BrId: {
-      type: Number,
-      trim: true,
-      default: null
-    },
-    Is_peak: {
-      type: Number,
-      trim: true,
-      default: null
+      required: false,
     },
   },
-  { timestamps: true }
-);
+  DestinationCity: {
+    type: String,
+    required: false,
+  },
+  DestinationCoords: {
+    lat: {
+      type: String,
+      required: false,
+    },
+    long: {
+      type: String,
+      required: false,
+    },
+  },
+  Job_Departure: {
+    type: Date,
+    required: false,
+  },
+  Job_Arrival: {
+    type: Date,
+    required: false,
+  },
+  Job_Desc: {
+    type: String,
+    required: false,
+  },
+  TripType: {
+    type: Number,
+    required: false,
+  },
+  Dept: {
+    type: String,
+    required: false,
+  },
+  Arr: {
+    type: String,
+    required: false,
+  },
+  Job_Start: {
+    type: Date,
+    required: false,
+  },
+  createdAt: {
+    type: Date,
+    required: false,
+  },
+  updatedAt: {
+    type: Date,
+    required: false,
+  },
+});
 
 const JobDetailsModel = mongoose.model("jobDetails", jobDetailsSchema);
 
