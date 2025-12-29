@@ -33,7 +33,7 @@ const getToken = async () => {
         } else {
             console.error('Error getting token (other):', error.message);
         }
-        throw error;
+        // throw error;
     }
 }
 // getToken()
