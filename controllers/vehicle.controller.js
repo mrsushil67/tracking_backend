@@ -157,7 +157,7 @@ module.exports.registerVehiclesFromExcel = async (req, res) => {
               headers: { Authorization: `Bearer ${token}` },
             }
           );
-
+console.log(response)
           if (response && response.data) {
             const data = response.data;
             // Create a new vehicle object from the response data
@@ -186,6 +186,8 @@ module.exports.registerVehiclesFromExcel = async (req, res) => {
             throw new Error(`No data found for vehicle: ${e.vehicleNo}`);
           }
         } catch (error) {
+          console.log(error);
+          
           return {
             success: false,
             vehicleNo: e.vehicleNo,
