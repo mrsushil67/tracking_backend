@@ -145,7 +145,7 @@ module.exports.registerVehiclesFromExcel = async (req, res) => {
       .filter((vehicleNo) => !existingVehicleNumbers.has(vehicleNo))
       .map((vehicleNo) => ({ vehicleNo }));
 
-    const token = getToken();
+    const token = await getToken();
     // Insert new vehicles if any
     console.log("token : ",token);
     if (newVehicles.length > 0) {
